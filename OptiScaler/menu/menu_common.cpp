@@ -49,82 +49,124 @@ static std::string currentBackendName = "";
 static int refreshRate = 0;
 static ImVec2 lastPosition(-1000.0f, -1000.0f);
 
+static const ImWchar* GetMenuGlyphRanges(ImFontAtlas* atlas)
+{
+    static ImVector<ImWchar> ranges;
+    if (ranges.empty())
+    {
+        ImFontGlyphRangesBuilder builder;
+        builder.AddRanges(atlas->GetGlyphRangesChineseSimplifiedCommon());
+        builder.AddText(
+            "—“”…、。《》一三上下不与专且世东两个中为主么义之乎乏乘也习买了争二于互些交产亮人仅今从他代令以们仰件任休众优会传伪估似但位低体何余作你佳使供保信修倍值假偏做停储像允元先光克免入全关其具兼内再写冲决"
+            "况减凑几出击分切列则刚创初删利别到制刷刺削前剩剪力办加务动助勾包化匹区升单博占卡印危即原去参又及双反发取受变叟叠只可台右号各合同名后向吗否含启呈告周和响啊善器噪嚼回因围固图在地均坏块垂型域基堆填增处复"
+            "外多够大天太失头奏好如始字存学它守安完官定实家容宽寸对导射将小少尚尝尤尬就尴尺尽尾层屏展属崩工左巫差已布师希带帧帮常幅幕平年并幻序应底度延建开异式引张弱强当形彩影征待很得微必志忘快忽态怎性总恢息情意感"
+            "慢戏成我或截所手才打执扩找技把抑抖抗护报抵拖拟拦择持挂指按挡挣振捕损换据掉排接控推提插搭摆撑撕擅支改放效敏数整文斥新方旁旋无日旧时明易映是显晕晚普景晰曝更替最有朋服望期未本术机束来松果枷某染柔查标栏校"
+            "样根格框案档检概模横橙次欧欺止正此步殊每比毫水永求法注洁活流浅测浏消淡深混清渐渲游溃源滑滤演潦激灰点烁然照版物特状独猜率玩现理甚生用由画界留略白的盖目直相省看真眠眼着矢知矩破础硬确示神祥禁种秒积移程稍"
+            "稳空立童第等签简算管类粉糊系素紫累繁红级纹线组细终经绑结绘给络绝统维绿缓编缘缩缺网罩置美翻而耗聪胆背能脱自至致臻良色节花若范草荐获菜蓝行街衡表衰被裁裂装西要覆见视览觉解警计认议记许论设证译试该详误说请"
+            "读谁调谢象负败质费资赛起超越趣足跟跨路跳踢踪身转软轻载较辑输辨边达过运近还这进远迟追退送适选透逐途通速造逻道遮避部都配采里重野量针钩钳铃链销锁锐错键镜长门闪闭问间阅阈队防际降限除险随隔障集零需青非面页"
+            "项须顿预领频题颜风飞馆首驱验高鲜黄黑默！（），：；？");
+        builder.BuildRanges(&ranges);
+    }
+
+    return ranges.Data;
+}
+
+static ImFont* AddBundledOrChineseFont(ImFontAtlas* atlas, float size, ImFontConfig* config)
+{
+    wchar_t windowsDirectory[MAX_PATH] {};
+    if (GetWindowsDirectoryW(windowsDirectory, MAX_PATH) > 0)
+    {
+        const auto fontsDirectory = std::filesystem::path(windowsDirectory) / L"Fonts";
+        for (const auto* fontName : { L"msyh.ttc", L"simhei.ttf", L"simsun.ttc" })
+        {
+            const auto chineseFontPath = fontsDirectory / fontName;
+            if (std::filesystem::exists(chineseFontPath))
+            {
+                return atlas->AddFontFromFileTTF(wstring_to_string(chineseFontPath.wstring()).c_str(), size, config,
+                                                 GetMenuGlyphRanges(atlas));
+            }
+        }
+    }
+
+    return atlas->AddFontFromMemoryCompressedBase85TTF(hack_compressed_compressed_data_base85, size, config);
+}
+
 static ImVec2 splashPosition(-1000.0f, -1000.0f);
 static ImVec2 splashSize(0.0f, 0.0f);
 static double splashStart = 0.0;
 static double splashLimit = 0.0;
-static std::vector<std::string> splashText = { "Cope smarter, not harder",
-                                               "Coping is strong with this one...",
-                                               "This is where the fun begins...",
-                                               "Got any more of them scalers?...",
-                                               "Fake pixels and even faker frames...",
-                                               "Fake frames, get your fake frames...",
-                                               "I'm here to kick pixels and chew frames...",
-                                               "I find your lack of supersampling disturbing...",
-                                               "Frame by frame, I scale-up!",
-                                               "Resistance is futile. Your pixels will be upscaled.",
-                                               "I've got 99 problems, but low-res ain't one.",
-                                               "It's over, DLSS, I have the higher ground!",
-                                               "This isn't the resolution you're looking for.",
-                                               "To infinity and beyond... with ray tracing off.",
-                                               "I have a bad feeling about this frame pacing.",
-                                               "It's Dangerous to Go Alone-Take This Upscaler",
-                                               "Upscaled beyond recognition.",
-                                               "Trust the process. Ignore the shimmer.",
-                                               "Real fake frames. Certified.",
-                                               "The illusion of performance, perfected.",
-                                               "This upscaler belongs in a museum!",
-                                               "Because native rendering is overrated.",
-                                               "The more you upscaler, the more you save",
-                                               "It's never too late to buy a better GPU",
-                                               "We don't need real pixels where we're going",
-                                               "Did you know that Intel released XeFG for everyone?",
-                                               "MFG totally works with Nukem's 100%% no scam",
-                                               "Some of those pixels might even be real!",
-                                               "Just don't look too closely at the image",
-                                               "Even supports \"software\" XeSS!",
-                                               "It’s too blurry to go alone, take RCAS with you",
-                                               "Thanks nitec, back to you nitec",
-                                               "Tested and approved by By-U",
-                                               "0.8 was an inside job",
-                                               "FSR4 DP4a wenETA, AMD plz",
-                                               "OptiCopers, assemble!",
-                                               "The Way It's Meant To Be Upscaled",
-                                               "Your game may not even crash today",
-                                               "Expanded and Enhanced",
-                                               "It's only my 5th crash today",
-                                               "Latency with FG? But I have good internet",
-                                               "Console peasants can't do that",
-                                               "Hope you don't have a good eyesight",
-                                               "Such an aggressive upscaling? A bold move",
-                                               "I almost don't feel the input lag",
-                                               "And that's how you get to 60 FPS",
-                                               "Together We Upscale",
-                                               "For upscalers, by upscalers",
-                                               "Opti Sports, it's in the sampling",
-                                               "Render in your world. Upscale in ours",
-                                               "All your pixels are belong to us",
-                                               "Upscaling for the masses, not the classes",
-                                               "Generating discord since 2023",
-                                               "Enabling DLSS since 2023",
-                                               "[REDACTED] never looked better",
-                                               "Free and always free",
-                                               "Getting unshackled from green chains in progress...",
-                                               "Who's Nukem anyway?",
-                                               "Compiling shaders... ETA: 05h:49m",
-                                               "Did you really just pay 70€ for this game?!",
-                                               "Guess who forgot about a nullptr check again",
-                                               "AI can't outslop this",
-                                               "Guess we're pre-alpha build demos now",
-                                               "New app on the block - TH",
-                                               "One more stutter and I might lose it",
-                                               "Deep Learning Slop Sampling 5",
-                                               "2D AI filters, now powered by just 2x 5090s",
-                                               "Neural Slop Sampling with DLSS5",
-                                               "DLSS 5 - the way it's meant to be slopped",
-                                               "Just when I think I'm out, they scale me back in",
-                                               "How to remove those corny messages?!",
-                                               "<Your funny text goes here>" };
+static std::vector<std::string> splashText = { "聪明应对，别硬撑",
+                                               "这次的应对之力很强……",
+                                               "好戏才刚刚开始……",
+                                               "还有更多升频器吗？……",
+                                               "假像素，以及更假的帧……",
+                                               "生成帧，新鲜的生成帧……",
+                                               "我来踢像素、嚼帧了……",
+                                               "你对超级采样缺乏信仰，令人不安……",
+                                               "一帧接一帧，放大！",
+                                               "抵抗毫无意义，你的像素终将被升频。",
+                                               "我有 99 个问题，但低分辨率不是其中之一。",
+                                               "结束了，DLSS，我占据了高分辨率！",
+                                               "这不是你要找的分辨率。",
+                                               "飞向无限……先把光追关掉。",
+                                               "我对这帧节奏有种不祥的预感。",
+                                               "独自上路很危险，带上这个升频器",
+                                               "升频到面目全非。",
+                                               "相信过程，忽略闪烁。",
+                                               "如假包换的假帧，已认证。",
+                                               "性能幻觉，臻于完美。",
+                                               "这个升频器应该放进博物馆！",
+                                               "因为原生渲染被高估了。",
+                                               "升得越多，省得越多",
+                                               "买张更好的显卡永远不晚",
+                                               "我们要去的地方不需要真实像素",
+                                               "你知道 Intel 已向所有人开放 XeFG 了吗？",
+                                               "Nukem 的 MFG 绝对可用，100%% 童叟无欺",
+                                               "其中一些像素甚至可能是真的！",
+                                               "只要别凑近看画面",
+                                               "甚至支持“软件”XeSS！",
+                                               "独自面对模糊很危险，带上 RCAS",
+                                               "谢谢 nitec，镜头交还 nitec",
+                                               "经 By-U 测试认证",
+                                               "0.8 是内部作案",
+                                               "FSR4 DP4a 何时发布，AMD 求你了",
+                                               "OptiCopers，集结！",
+                                               "升频，本该如此",
+                                               "你的游戏今天甚至可能不会崩溃",
+                                               "扩展并增强",
+                                               "今天才第 5 次崩溃",
+                                               "FG 有延迟？可我的网速很好啊",
+                                               "主机玩家可做不到",
+                                               "希望你的视力别太好",
+                                               "如此激进的升频？很大胆",
+                                               "几乎感觉不到输入延迟",
+                                               "就这样达到 60 FPS",
+                                               "我们一起升频",
+                                               "源于升频玩家，服务升频玩家",
+                                               "Opti Sports，采样尽在其中",
+                                               "在你的世界渲染，在我们的世界升频",
+                                               "你的像素全都属于我们",
+                                               "升频属于大众，而非少数",
+                                               "自 2023 年起制造争论",
+                                               "自 2023 年起启用 DLSS",
+                                               "[已编辑] 从未如此清晰",
+                                               "免费，并且永远免费",
+                                               "正在挣脱绿色枷锁……",
+                                               "Nukem 到底是谁？",
+                                               "正在编译着色器……预计剩余 05:49",
+                                               "你真花了 70 欧元买这个游戏？！",
+                                               "猜猜谁又忘了检查 nullptr",
+                                               "AI 都比不过这堆东西",
+                                               "看来我们现在是 Pre-Alpha 演示了",
+                                               "街区新应用：TH",
+                                               "再卡顿一次我就要受不了了",
+                                               "深度学习潦草采样 5",
+                                               "二维 AI 滤镜，现在只需两张 5090 驱动",
+                                               "DLSS5 神经网络潦草采样",
+                                               "DLSS 5——潦草，本该如此",
+                                               "每当我以为脱身了，它们又把我升了回去",
+                                               "怎么移除这些尴尬消息？！",
+                                               "<请在此填写有趣文字>" };
 
 static ImVec2 updateNoticePosition(-1000.0f, -1000.0f);
 static ImVec2 updateNoticeSize(0.0f, 0.0f);
@@ -792,7 +834,7 @@ class Keybind
     static std::string KeyNameFromVirtualKeyCode(USHORT virtualKey)
     {
         if (virtualKey == (USHORT) UnboundKey)
-            return "Unbound";
+            return "未绑定";
 
         UINT scanCode = MapVirtualKeyW(virtualKey, MAPVK_VK_TO_VSC);
 
@@ -825,7 +867,7 @@ class Keybind
         if (GetKeyNameTextW(lParam, buf, static_cast<int>(std::size(buf))) != 0)
             return wstring_to_string(buf);
 
-        return "Unknown";
+        return "未知";
     }
 
     void Render(CustomOptional<int>& configKey)
@@ -841,7 +883,7 @@ class Keybind
         if (waitingForKey)
         {
             ImGui::SameLine();
-            ImGui::Text("Press any key...");
+            ImGui::Text("请按任意键……");
 
             if (lastKey == 0 || lastKey == VK_LBUTTON || lastKey == VK_RBUTTON || lastKey == VK_MBUTTON)
                 return;
@@ -1373,7 +1415,7 @@ void MenuCommon::AddVulkanBackends(std::string* code, std::string* name)
 
 template <HasDefaultValue B> void MenuCommon::AddResourceBarrier(std::string name, CustomOptional<int32_t, B>* value)
 {
-    const char* states[] = { "AUTO",
+    const char* states[] = { "自动",
                              "COMMON",
                              "VERTEX_AND_CONSTANT_BUFFER",
                              "INDEX_BUFFER",
@@ -1393,7 +1435,7 @@ template <HasDefaultValue B> void MenuCommon::AddResourceBarrier(std::string nam
                              "SHADING_RATE_SOURCE",
                              "GENERIC_READ",
                              "ALL_SHADER_RESOURCE",
-                             "PRESENT",
+                             "呈现",
                              "PREDICATION",
                              "VIDEO_DECODE_READ",
                              "VIDEO_DECODE_WRITE",
@@ -1587,40 +1629,40 @@ template <HasDefaultValue B> void MenuCommon::AddDLSSRenderPreset(std::string na
 {
     // clang-format off
     static const std::vector<MenuOption<uint32_t>> presets = {
-        { NVSDK_NGX_DLSS_Hint_Render_Preset_Default, "DEFAULT", 
-            "Whatever the game uses" },
-        { NVSDK_NGX_DLSS_Hint_Render_Preset_A, "PRESET A",
-            "Intended for Performance/Balanced/Quality modes.\nAn older variant best suited to combat ghosting...\nRemoved on recent versions!" },
-        { NVSDK_NGX_DLSS_Hint_Render_Preset_B, "PRESET B",
-            "Intended for Ultra Performance mode.\nSimilar to Preset A...\nRemoved on recent versions!" },
-        { NVSDK_NGX_DLSS_Hint_Render_Preset_C, "PRESET C",
-            "Intended for Performance/Balanced/Quality modes.\nGenerally favors current frame information...\nRemoved on recent versions!" },
-        { NVSDK_NGX_DLSS_Hint_Render_Preset_D, "PRESET D",
-            "Default preset for Performance/Balanced/Quality modes;\ngenerally favors image stability.\nRemoved on recent versions!" },
-        { NVSDK_NGX_DLSS_Hint_Render_Preset_E, "PRESET E",
-            "DLSS 3.7+, a better D preset\nRemoved on recent versions!" },
+        { NVSDK_NGX_DLSS_Hint_Render_Preset_Default, "默认",
+            "使用游戏指定的预设" },
+        { NVSDK_NGX_DLSS_Hint_Render_Preset_A, "预设 A",
+            "适用于性能/平衡/质量模式。\n较旧的变体，最适合抑制重影……\n已从新版本中移除！" },
+        { NVSDK_NGX_DLSS_Hint_Render_Preset_B, "预设 B",
+            "适用于超级性能模式。\n与预设 A 类似……\n已从新版本中移除！" },
+        { NVSDK_NGX_DLSS_Hint_Render_Preset_C, "预设 C",
+            "适用于性能/平衡/质量模式。\n通常更重视当前帧信息……\n已从新版本中移除！" },
+        { NVSDK_NGX_DLSS_Hint_Render_Preset_D, "预设 D",
+            "性能/平衡/质量模式的默认预设；\n通常更重视画面稳定性。\n已从新版本中移除！" },
+        { NVSDK_NGX_DLSS_Hint_Render_Preset_E, "预设 E",
+            "DLSS 3.7+ 中改进的 D 预设\n已从新版本中移除！" },
         { NVSDK_NGX_DLSS_Hint_Render_Preset_F, "PRESET F",
-            "Default preset for Ultra Performance and DLAA modes\nRemoved on recent versions!" },
+            "超级性能和 DLAA 模式的默认预设\n已从新版本中移除！" },
         { NVSDK_NGX_DLSS_Hint_Render_Preset_G, "PRESET G",
-            "Unused" },
+            "未使用" },
         { NVSDK_NGX_DLSS_Hint_Render_Preset_H_Reserved, "PRESET H",
-            "Unused" },
+            "未使用" },
         { NVSDK_NGX_DLSS_Hint_Render_Preset_I_Reserved, "PRESET I",
-            "Unused" },
+            "未使用" },
         { NVSDK_NGX_DLSS_Hint_Render_Preset_J, "PRESET J",
-            "Similar to preset K. Preset J might exhibit slightly\nless ghosting...\n1st Gen Transformer" },
+            "与预设 K 类似。预设 J 的重影可能稍少。\n第一代 Transformer" },
         { NVSDK_NGX_DLSS_Hint_Render_Preset_K, "PRESET K",
-            "Default preset for DLAA/Balanced/Quality modes...\n1st Gen Transformer" },
+            "DLAA/平衡/质量模式的默认预设……\n第一代 Transformer" },
         { NVSDK_NGX_DLSS_Hint_Render_Preset_L, "PRESET L",
-            "Default for Ultra Perf mode\n2nd Gen Transformers" },
+            "超级性能模式的默认预设\n第二代 Transformer" },
         { NVSDK_NGX_DLSS_Hint_Render_Preset_M, "PRESET M",
-            "Default for Perf mode\n2nd Gen Transformer" },
+            "性能模式的默认预设\n第二代 Transformer" },
         { NVSDK_NGX_DLSS_Hint_Render_Preset_N, "PRESET N",
-            "Unused" },
+            "未使用" },
         { NVSDK_NGX_DLSS_Hint_Render_Preset_O, "PRESET O",
-            "Unused" },
-        { NV_PRESET_LATEST, "Latest",
-            "Latest supported by the dll" }
+            "未使用" },
+        { NV_PRESET_LATEST, "最新",
+            "DLL 支持的最新预设" }
     };
     // clang-format on
 
@@ -1631,13 +1673,13 @@ template <HasDefaultValue B> void MenuCommon::AddDLSSDRenderPreset(std::string n
 {
     // We don't have DLSSD definitions so using raw values
     static const std::vector<MenuOption<uint32_t>> presets = {
-        { 0, "DEFAULT", "Whatever the game uses" },
-        { 1, "PRESET A", "Preset A\nRemoved on recent versions!" },
-        { 2, "PRESET B", "Preset B\nRemoved on recent versions!" },
-        { 3, "PRESET C", "Preset C\nRemoved on recent versions!" },
-        { 4, "PRESET D", "Default model, Transformer" },
-        { 5, "PRESET E", "Latest Transformer model\nMust use if DoF guide is needed" },
-        { NV_PRESET_LATEST, "Latest", "Latest supported by the dll" }
+        { 0, "默认", "使用游戏指定的预设" },
+        { 1, "预设 A", "预设 A\n已从新版本中移除！" },
+        { 2, "预设 B", "预设 B\n已从新版本中移除！" },
+        { 3, "预设 C", "预设 C\n已从新版本中移除！" },
+        { 4, "预设 D", "默认 Transformer 模型" },
+        { 5, "预设 E", "最新 Transformer 模型\n需要景深引导时必须使用" },
+        { NV_PRESET_LATEST, "最新", "DLL 支持的最新预设" }
     };
 
     PopulateCombo(name, *value, presets);
@@ -1658,7 +1700,7 @@ void MenuCommon::PopulateCombo(const std::string& name, TStorage& currentValue,
         currentVal = currentValue.value_or(options[0].value);
 
     // Find the label for the currently selected item
-    std::string preview = "Unknown";
+    std::string preview = "未知";
     for (const auto& opt : options)
     {
         if (opt.value == currentVal)
@@ -2283,7 +2325,7 @@ bool MenuCommon::RenderMenu()
             ImGui::PushStyleColor(ImGuiCol_Border, IM_COL32(0, 0, 0, 0));
             ImGui::PushStyleColor(ImGuiCol_FrameBg, IM_COL32(0, 0, 0, 0));
 
-            if (ImGui::Begin("Splash", nullptr,
+            if (ImGui::Begin("启动提示", nullptr,
                              ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoDecoration |
                                  ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoFocusOnAppearing |
                                  ImGuiWindowFlags_NoNav))
@@ -2299,7 +2341,7 @@ bool MenuCommon::RenderMenu()
                 else
                     ImGui::SetWindowFontScale(splashScale);
 
-                ImGui::Text("OptiScaler - %s for menu",
+                ImGui::Text("OptiScaler - 按 %s 打开菜单",
                             Keybind::KeyNameFromVirtualKeyCode(config->ShortcutKey.value_or_default()).c_str());
                 ImGui::TextColored(toneMapColor(ImVec4(1.0f, 1.0f, 1.0f, 0.7f)), splashMessage.c_str());
 
@@ -2345,7 +2387,7 @@ bool MenuCommon::RenderMenu()
             ImGui::PushStyleColor(ImGuiCol_FrameBg, IM_COL32(0, 0, 0, 0));
 
             bool pushedFont = false;
-            if (ImGui::Begin("Update Available", nullptr,
+            if (ImGui::Begin("有可用更新", nullptr,
                              ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoDecoration |
                                  ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoFocusOnAppearing |
                                  ImGuiWindowFlags_NoNav))
@@ -2366,9 +2408,9 @@ bool MenuCommon::RenderMenu()
                     ImGui::SetWindowFontScale(splashScale);
                 }
 
-                ImGui::TextColored(toneMapColor(ImVec4(1.0f, 0.0f, 0.0f, 1.0f)), "OptiScaler Update available");
+                ImGui::TextColored(toneMapColor(ImVec4(1.0f, 0.0f, 0.0f, 1.0f)), "OptiScaler 有可用更新");
                 ImGui::Spacing();
-                ImGui::Text("Press %s for more info",
+                ImGui::Text("按 %s 查看详情",
                             Keybind::KeyNameFromVirtualKeyCode(config->ShortcutKey.value_or_default()).c_str());
 
                 if (pushedFont)
@@ -2462,7 +2504,7 @@ bool MenuCommon::RenderMenu()
         ImVec4 green(0.0f, 1.0f, 0.0f, 1.0f);
         ImGui::PushStyleColor(ImGuiCol_PlotLines, toneMapColor(green));
 
-        if (ImGui::Begin("Performance Overlay", nullptr,
+        if (ImGui::Begin("性能叠加层", nullptr,
                          ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoDecoration |
                              ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoFocusOnAppearing |
                              ImGuiWindowFlags_NoNav))
@@ -2580,7 +2622,7 @@ bool MenuCommon::RenderMenu()
                     if (fg != nullptr && fg->IsActive() && !fg->IsPaused())
                     {
                         firstLine =
-                            StrFmt("%s | FPS: %6.1f/%5.1f, Avg: %6.1f %s | %s -> %s %u.%u.%u", api.c_str(), frameRate,
+                            StrFmt("%s | FPS: %6.1f/%5.1f, 平均: %6.1f %s | %s -> %s %u.%u.%u", api.c_str(), frameRate,
                                    frameRate / (float) (fg->GetInterpolatedFrameCount() + 1),
                                    1000.0f / averageFrameTime, fgText.c_str(), state.currentInputApiName.c_str(),
                                    currentFeature->Name().c_str(), currentFeature->Version().major,
@@ -2589,7 +2631,7 @@ bool MenuCommon::RenderMenu()
                     else
                     {
                         firstLine =
-                            StrFmt("%s | FPS: %6.1f, Avg: %6.1f %s | %s -> %s %u.%u.%u", api.c_str(), frameRate,
+                            StrFmt("%s | FPS: %6.1f, 平均: %6.1f %s | %s -> %s %u.%u.%u", api.c_str(), frameRate,
                                    1000.0f / averageFrameTime, fgText.c_str(), state.currentInputApiName.c_str(),
                                    currentFeature->Name().c_str(), currentFeature->Version().major,
                                    currentFeature->Version().minor, currentFeature->Version().patch);
@@ -2599,13 +2641,13 @@ bool MenuCommon::RenderMenu()
                 {
                     if (fg != nullptr && fg->IsActive() && !fg->IsPaused())
                     {
-                        firstLine = StrFmt("%s | FPS: %6.1f/%5.1f, Avg: %6.1f %s", api.c_str(), frameRate,
+                        firstLine = StrFmt("%s | FPS: %6.1f/%5.1f, 平均: %6.1f %s", api.c_str(), frameRate,
                                            frameRate / (float) (fg->GetInterpolatedFrameCount() + 1),
                                            1000.0f / averageFrameTime, fgText.c_str());
                     }
                     else
                     {
-                        firstLine = StrFmt("%s | FPS: %6.1f, Avg: %6.1f %s", api.c_str(), frameRate,
+                        firstLine = StrFmt("%s | FPS: %6.1f, 平均: %6.1f %s", api.c_str(), frameRate,
                                            1000.0f / averageFrameTime, fgText.c_str());
                     }
                 }
@@ -2625,14 +2667,14 @@ bool MenuCommon::RenderMenu()
                     ImGui::Spacing();
                 }
 
-                secondLine = StrFmt("Frame Time: %7.2f ms, Avg: %7.2f ms", state.frameTimes.back(), averageFrameTime);
+                secondLine = StrFmt("帧时间: %7.2f ms, 平均: %7.2f ms", state.frameTimes.back(), averageFrameTime);
             }
 
             // Prepare Line 3
             if (config->FpsOverlayType.value_or_default() >= FpsOverlay_Full)
             {
                 thirdLine =
-                    StrFmt("Upscaler Time: %7.2f ms, Avg: %7.2f ms", state.upscaleTimes.back(), averageUpscalerFT);
+                    StrFmt("升频耗时: %7.2f ms, 平均: %7.2f ms", state.upscaleTimes.back(), averageUpscalerFT);
             }
 
             ImVec2 plotSize;
@@ -2744,7 +2786,7 @@ bool MenuCommon::RenderMenu()
                         localFrameCount = fg->FrameCount();
 
                     ImGui::Text("FGId: %llu, RfxId: %llu", localFrameCount, state.reflexFrameId);
-                    ImGui::Text("Reflex timings, whole frame: %.1fms", rangeInNs / 1000.0);
+                    ImGui::Text("Reflex 计时，整帧: %.1fms", rangeInNs / 1000.0);
 
                     const auto maxWidth =
                         config->FpsOverlayHorizontal.value_or_default() ? ImGui::GetWindowWidth() : plotSize.x;
@@ -2769,12 +2811,12 @@ bool MenuCommon::RenderMenu()
                         drawList->AddRectFilled(pos, size, ImGui::ColorConvertFloat4ToU32(toneMappedColor));
                     };
 
-                    drawTiming(TimingType::Simulation, "Simulation", ImVec4(0.768f, 0.169f, 0.169f, 1.0f));
-                    drawTiming(TimingType::RenderSubmit, "RenderSubmit", ImVec4(0.235f, 0.705f, 0.294f, 1.0f));
-                    drawTiming(TimingType::Present, "Present", ImVec4(1.0f, 0.88f, 0.098f, 1.0f));
-                    drawTiming(TimingType::Driver, "Driver", ImVec4(0.263f, 0.388f, 0.847f, 1.0f));
-                    drawTiming(TimingType::OsRenderQueue, "RenderQueue", ImVec4(0.76f, 0.51f, 0.188f, 1.0f));
-                    drawTiming(TimingType::GpuRender, "GpuRender", ImVec4(0.569f, 0.117f, 0.705f, 1.0f));
+                    drawTiming(TimingType::Simulation, "模拟", ImVec4(0.768f, 0.169f, 0.169f, 1.0f));
+                    drawTiming(TimingType::RenderSubmit, "渲染提交", ImVec4(0.235f, 0.705f, 0.294f, 1.0f));
+                    drawTiming(TimingType::Present, "呈现", ImVec4(1.0f, 0.88f, 0.098f, 1.0f));
+                    drawTiming(TimingType::Driver, "驱动", ImVec4(0.263f, 0.388f, 0.847f, 1.0f));
+                    drawTiming(TimingType::OsRenderQueue, "渲染队列", ImVec4(0.76f, 0.51f, 0.188f, 1.0f));
+                    drawTiming(TimingType::GpuRender, "GPU 渲染", ImVec4(0.569f, 0.117f, 0.705f, 1.0f));
                 }
             }
         }
@@ -2898,13 +2940,13 @@ bool MenuCommon::RenderMenu()
                 if (versionStatus.updateAvailable && !versionStatus.latestTag.empty())
                 {
                     ImGui::Spacing();
-                    ImGui::TextColored(toneMapColor(ImVec4(1.f, 0.8f, 0.f, 1.f)), "Update available: %s (current %s)",
+                    ImGui::TextColored(toneMapColor(ImVec4(1.f, 0.8f, 0.f, 1.f)), "有可用更新: %s（当前 %s）",
                                        versionStatus.latestTag.c_str(), currentVersionText.c_str());
 
                     if (!versionStatus.latestUrl.empty())
                     {
                         ImGui::SameLine();
-                        ImGui::TextLinkOpenURL("Open release page", versionStatus.latestUrl.c_str());
+                        ImGui::TextLinkOpenURL("打开发布页面", versionStatus.latestUrl.c_str());
                     }
 
                     ImGui::Spacing();
@@ -2949,12 +2991,11 @@ bool MenuCommon::RenderMenu()
                     if (state.libxessExists || XeSSProxy::Module() != nullptr)
                         upscalers.push_back("XeSS");
 
-                    auto joined = upscalers | std::views::join_with(std::string { " or " });
+                    auto joined = upscalers | std::views::join_with(std::string { " 或 " });
 
                     std::string joinedUpscalers(joined.begin(), joined.end());
 
-                    ImGui::Text("Please select %s as upscaler from game\noptions and load a save game "
-                                "to enable Opti settings.\nUpscalers don't always work in menus.",
+                    ImGui::Text("请在游戏选项中选择 %s 作为升频器，\n并加载存档以启用 Opti 设置。\n升频器在菜单中不一定工作。",
                                 joinedUpscalers.c_str());
 
                     if (config->UseHQFont.value_or_default())
@@ -2966,33 +3007,33 @@ bool MenuCommon::RenderMenu()
 
                     if (!state.isRunningOnNvidia)
                     {
-                        ImGui::Text("nvngx.dll: %s", state.nvngxExists ? "Exists" : "Doesn't Exist");
+                        ImGui::Text("nvngx.dll: %s", state.nvngxExists ? "存在" : "不存在");
                     }
 
                     if (state.isRunningOnNvidia)
                     {
-                        ImGui::Text("nvngx_dlss : %s", state.NVNGX_DLSS_Path.has_value() ? "Exists" : "Doesn't Exist");
+                        ImGui::Text("nvngx_dlss : %s", state.NVNGX_DLSS_Path.has_value() ? "存在" : "不存在");
                         ImGui::SameLine(0.0f, 16.0f);
                         ImGui::Text("nvngx_dlssd : %s",
-                                    state.NVNGX_DLSSD_Path.has_value() ? "Exists" : "Doesn't Exist");
+                                    state.NVNGX_DLSSD_Path.has_value() ? "存在" : "不存在");
                     }
                     else
                     {
                         ImGui::SameLine(0.0f, 16.0f);
-                        ImGui::Text("nvngx replacement: %s",
-                                    state.nvngxReplacement.has_value() ? "Exists" : "Doesn't Exist");
+                        ImGui::Text("nvngx 替代项: %s",
+                                    state.nvngxReplacement.has_value() ? "存在" : "不存在");
                     }
 
                     ImGui::Text("libxess: %s",
-                                (state.libxessExists || XeSSProxy::Module() != nullptr) ? "Exists" : "Doesn't Exist");
+                                (state.libxessExists || XeSSProxy::Module() != nullptr) ? "存在" : "不存在");
 
-                    ImGui::Text("FSR Hooks: %s", state.fsrHooks ? "Exist" : "Don't Exist");
+                    ImGui::Text("FSR 挂钩: %s", state.fsrHooks ? "存在" : "不存在");
                     ImGui::SameLine(0.0f, 16.0f);
-                    ImGui::Text("FSR 3.1: %s", FfxApiProxy::Dx12Module() != nullptr ? "Exists" : "Doesn't Exist");
+                    ImGui::Text("FSR 3.1: %s", FfxApiProxy::Dx12Module() != nullptr ? "存在" : "不存在");
                     ImGui::SameLine(0.0f, 16.0f);
-                    ImGui::Text("FSR 3.1 SR: %s", FfxApiProxy::Dx12Module_SR() != nullptr ? "Exists" : "Doesn't Exist");
+                    ImGui::Text("FSR 3.1 SR: %s", FfxApiProxy::Dx12Module_SR() != nullptr ? "存在" : "不存在");
                     ImGui::SameLine(0.0f, 16.0f);
-                    ImGui::Text("FSR 3.1 FG: %s", FfxApiProxy::Dx12Module_FG() != nullptr ? "Exists" : "Doesn't Exist");
+                    ImGui::Text("FSR 3.1 FG: %s", FfxApiProxy::Dx12Module_FG() != nullptr ? "存在" : "不存在");
 
                     ImGui::Spacing();
                 }
@@ -3000,7 +3041,7 @@ bool MenuCommon::RenderMenu()
                 {
                     ImGui::Spacing();
                     ImGui::Text(
-                        "Can't find nvngx.dll and libxess.dll and FSR inputs\nUpscaling support will NOT work.");
+                        "找不到 nvngx.dll、libxess.dll 和 FSR 输入。\n升频支持将无法工作。");
                     ImGui::Spacing();
 
                     if (config->UseHQFont.value_or_default())
@@ -3018,7 +3059,7 @@ bool MenuCommon::RenderMenu()
                 else
                     ImGui::SetWindowFontScale(menuResScale * 3.0f);
 
-                ImGui::Text("%s is active, but not currently used by the game\nPlease enter the game",
+                ImGui::Text("%s 已激活，但游戏当前未使用它。\n请进入游戏画面。",
                             currentFeature->Name().c_str());
 
                 if (config->UseHQFont.value_or_default())
@@ -3034,8 +3075,8 @@ bool MenuCommon::RenderMenu()
                 if (currentFeature != nullptr && !currentFeature->IsFrozen())
                 {
                     // UPSCALERS -----------------------------
-                    ImGui::SeparatorText("Upscalers");
-                    ShowTooltip("Which copium do you choose?");
+                    ImGui::SeparatorText("升频器");
+                    ShowTooltip("选择要使用的升频技术");
 
                     GetCurrentBackendInfo(state.api, &currentBackend, &currentBackendName);
 
@@ -3055,11 +3096,11 @@ bool MenuCommon::RenderMenu()
                                     currentFeature->Name().c_str(), currentFeature->Version().major,
                                     currentFeature->Version().minor, currentFeature->Version().patch);
                         ImGui::SameLine(0.0f, 6.0f);
-                        ImGui::Text("| Input: %s", state.currentInputApiName.c_str());
+                        ImGui::Text("| 输入: %s", state.currentInputApiName.c_str());
 
                         ImGui::SameLine(0.0f, 6.0f);
-                        spoofingText = config->DxgiSpoofing.value_or_default() ? "On" : "Off";
-                        ImGui::Text("| Spoof: %s", spoofingText.c_str());
+                        spoofingText = config->DxgiSpoofing.value_or_default() ? "开" : "关";
+                        ImGui::Text("| 伪装: %s", spoofingText.c_str());
 
                         if (currentFeature->Name() != "DLSSD")
                             AddDx11Backends(&currentBackend, &currentBackendName);
@@ -3074,11 +3115,11 @@ bool MenuCommon::RenderMenu()
                                     currentFeature->Name().c_str(), currentFeature->Version().major,
                                     currentFeature->Version().minor, currentFeature->Version().patch);
                         ImGui::SameLine(0.0f, 6.0f);
-                        ImGui::Text("| Input: %s", state.currentInputApiName.c_str());
+                        ImGui::Text("| 输入: %s", state.currentInputApiName.c_str());
 
                         ImGui::SameLine(0.0f, 6.0f);
-                        spoofingText = config->DxgiSpoofing.value_or_default() ? "On" : "Off";
-                        ImGui::Text("| Spoof: %s", spoofingText.c_str());
+                        spoofingText = config->DxgiSpoofing.value_or_default() ? "开" : "关";
+                        ImGui::Text("| 伪装: %s", spoofingText.c_str());
 
                         if (currentFeature->Name() != "DLSSD")
                             AddDx12Backends(&currentBackend, &currentBackendName);
@@ -3093,22 +3134,22 @@ bool MenuCommon::RenderMenu()
                                     currentFeature->Name().c_str(), currentFeature->Version().major,
                                     currentFeature->Version().minor, currentFeature->Version().patch);
                         ImGui::SameLine(0.0f, 6.0f);
-                        ImGui::Text("| Input: %s", state.currentInputApiName.c_str());
+                        ImGui::Text("| 输入: %s", state.currentInputApiName.c_str());
 
                         auto vlkSpoof = config->VulkanSpoofing.value_or_default();
                         auto vlkExtSpoof = config->VulkanExtensionSpoofing.value_or_default();
 
                         if (vlkSpoof && vlkExtSpoof)
-                            spoofingText = "On + Ext";
+                            spoofingText = "开 + 扩展";
                         else if (vlkSpoof)
-                            spoofingText = "On";
+                            spoofingText = "开";
                         else if (vlkExtSpoof)
-                            spoofingText = "Just Ext";
+                            spoofingText = "仅扩展";
                         else
-                            spoofingText = "Off";
+                            spoofingText = "关";
 
                         ImGui::SameLine(0.0f, 6.0f);
-                        ImGui::Text("| Spoof: %s", spoofingText.c_str());
+                        ImGui::Text("| 伪装: %s", spoofingText.c_str());
 
                         if (currentFeature->Name() != "DLSSD")
                             AddVulkanBackends(&currentBackend, &currentBackendName);
@@ -3120,7 +3161,7 @@ bool MenuCommon::RenderMenu()
                     {
                         ImGui::SameLine(0.0f, 6.0f);
 
-                        if (ImGui::Button("Change Upscaler##2") && state.newBackend != "" &&
+                        if (ImGui::Button("切换升频器##2") && state.newBackend != "" &&
                             state.newBackend != currentBackend)
                         {
                             if (state.newBackend == "xess")
@@ -3139,7 +3180,7 @@ bool MenuCommon::RenderMenu()
                         ImGui::BeginDisabled(config->DisableReactiveMask.value_or(false));
 
                         auto useAsTransparency = config->FsrUseMaskForTransparency.value_or_default();
-                        if (ImGui::Checkbox("Use Reactive Mask as Transparency Mask", &useAsTransparency))
+                        if (ImGui::Checkbox("将反应式遮罩用作透明度遮罩", &useAsTransparency))
                             config->FsrUseMaskForTransparency = useAsTransparency;
 
                         ImGui::EndDisabled();
@@ -3149,7 +3190,7 @@ bool MenuCommon::RenderMenu()
                     {
                         ImGui::Spacing();
                         ImGui::TextColored(toneMapColor(ImVec4(1.f, 0.8f, 0.f, 1.f)),
-                                           "nvngx_dlss.dll not found, DLSS disabled!");
+                                           "找不到 nvngx_dlss.dll，DLSS 已禁用！");
                     }
                 }
 
@@ -3161,13 +3202,13 @@ bool MenuCommon::RenderMenu()
                         config->Dx11Upscaler.value_or_default() != "fsr31")
                     {
                         ImGui::Spacing();
-                        if (auto ch = ScopedCollapsingHeader("Dx11 with Dx12 Settings"); ch.IsHeaderOpen())
+                        if (auto ch = ScopedCollapsingHeader("D3D11 经 D3D12 设置"); ch.IsHeaderOpen())
                         {
                             ScopedIndent indent {};
                             ImGui::Spacing();
 
                             if (bool dontUseNTShared = config->DontUseNTShared.value_or_default();
-                                ImGui::Checkbox("Don't Use NTShared", &dontUseNTShared))
+                                ImGui::Checkbox("不使用 NTShared", &dontUseNTShared))
                                 config->DontUseNTShared = dontUseNTShared;
 
                             ImGui::Spacing();
@@ -3178,17 +3219,17 @@ bool MenuCommon::RenderMenu()
                     if (state.api == Vulkan && currentFeature->IsWithDx12())
                     {
                         ImGui::Spacing();
-                        if (auto ch = ScopedCollapsingHeader("Vulkan with Dx12 Settings"); ch.IsHeaderOpen())
+                        if (auto ch = ScopedCollapsingHeader("Vulkan 经 D3D12 设置"); ch.IsHeaderOpen())
                         {
                             ScopedIndent indent {};
                             ImGui::Spacing();
 
                             if (bool inputsUseCopy = config->VulkanUseCopyForInputs.value_or_default();
-                                ImGui::Checkbox("Use CopyResource for Inputs", &inputsUseCopy))
+                                ImGui::Checkbox("输入使用 CopyResource", &inputsUseCopy))
                                 config->VulkanUseCopyForInputs = inputsUseCopy;
 
                             if (bool outputUseCopy = config->VulkanUseCopyForOutput.value_or_default();
-                                ImGui::Checkbox("Use CopyResource for Output", &outputUseCopy))
+                                ImGui::Checkbox("输出使用 CopyResource", &outputUseCopy))
                                 config->VulkanUseCopyForOutput = outputUseCopy;
 
                             ImGui::Spacing();
@@ -3202,7 +3243,7 @@ bool MenuCommon::RenderMenu()
                     if (currentBackend == "xess" && currentFeature->Name() != "DLSSD")
                     {
                         ImGui::Spacing();
-                        if (auto ch = ScopedCollapsingHeader("XeSS Settings"); ch.IsHeaderOpen())
+                        if (auto ch = ScopedCollapsingHeader("XeSS 设置"); ch.IsHeaderOpen())
                         {
                             ScopedIndent indent {};
                             ImGui::Spacing();
@@ -3215,7 +3256,7 @@ bool MenuCommon::RenderMenu()
 
                             const char* selectedModel = models[configModes];
 
-                            if (ImGui::BeginCombo("Network Models", selectedModel))
+                            if (ImGui::BeginCombo("网络模型", selectedModel))
                             {
                                 for (int n = 0; n < 6; n++)
                                 {
@@ -3229,16 +3270,16 @@ bool MenuCommon::RenderMenu()
 
                                 ImGui::EndCombo();
                             }
-                            ShowHelpMarker("Likely doesn't do much");
+                            ShowHelpMarker("可能不会产生明显效果");
 
-                            if (bool dbg = state.xessDebug; ImGui::Checkbox("Dump (Shift+Del)", &dbg))
+                            if (bool dbg = state.xessDebug; ImGui::Checkbox("转储（Shift+Del）", &dbg))
                                 state.xessDebug = dbg;
 
                             ImGui::SameLine(0.0f, 6.0f);
                             int dbgCount = state.xessDebugFrames;
 
                             ImGui::PushItemWidth(95.0f * menuResScale);
-                            if (ImGui::InputInt("frames", &dbgCount))
+                            if (ImGui::InputInt("帧数", &dbgCount))
                             {
                                 if (dbgCount < 4)
                                     dbgCount = 4;
@@ -3259,7 +3300,7 @@ bool MenuCommon::RenderMenu()
                     if (currentBackend.rfind("fsr", 0) == 0 && currentFeature->Name() != "DLSSD" &&
                         (currentBackend == "fsr31" || currentBackend == "fsr31_12"))
                     {
-                        ImGui::SeparatorText("FFX Settings");
+                        ImGui::SeparatorText("FFX 设置");
 
                         if (_ffxUpscalerIndex < 0)
                             _ffxUpscalerIndex = config->FfxUpscalerIndex.value_or_default();
@@ -3270,7 +3311,7 @@ bool MenuCommon::RenderMenu()
                             ImGui::PushItemWidth(135.0f * menuResScale);
 
                             auto currentName = StrFmt("FSR %s", state.ffxUpscalerVersionNames[_ffxUpscalerIndex]);
-                            if (ImGui::BeginCombo("FFX Upscaler", currentName.c_str()))
+                            if (ImGui::BeginCombo("FFX 升频器", currentName.c_str()))
                             {
                                 for (int n = 0; n < state.ffxUpscalerVersionIds.size(); n++)
                                 {
@@ -3284,11 +3325,11 @@ bool MenuCommon::RenderMenu()
                             }
                             ImGui::PopItemWidth();
 
-                            ShowHelpMarker("List of upscalers reported by FFX SDK");
+                            ShowHelpMarker("FFX SDK 报告的升频器列表");
 
                             ImGui::SameLine(0.0f, 6.0f);
 
-                            if (ImGui::Button("Change Upscaler") &&
+                            if (ImGui::Button("切换升频器") &&
                                 _ffxUpscalerIndex != config->FfxUpscalerIndex.value_or_default())
                             {
                                 config->FfxUpscalerIndex = _ffxUpscalerIndex;
@@ -3303,8 +3344,8 @@ bool MenuCommon::RenderMenu()
                                 ImGui::Spacing();
 
                                 // Colorspaces
-                                const char* colorSpaces[] = { "Linear (Default)", "Non-Linear", "Non-Linear sRGB",
-                                                              "Non-Linear PQ" };
+                                const char* colorSpaces[] = { "线性（默认）", "非线性", "非线性 sRGB",
+                                                              "非线性 PQ" };
                                 int currentColorSpace = 0;
                                 if (config->FsrNonLinearPQ.value_or_default())
                                     currentColorSpace = 3;
@@ -3314,7 +3355,7 @@ bool MenuCommon::RenderMenu()
                                     currentColorSpace = 1;
 
                                 ImGui::SetNextItemWidth(150.0f * menuResScale);
-                                if (ImGui::Combo("Input Colour Space", &currentColorSpace, colorSpaces,
+                                if (ImGui::Combo("输入色彩空间", &currentColorSpace, colorSpaces,
                                                  IM_ARRAYSIZE(colorSpaces)))
                                 {
                                     bool isSrgb = (currentColorSpace == 2);
@@ -3339,14 +3380,13 @@ bool MenuCommon::RenderMenu()
                                     state.newBackend = currentBackend;
                                     MARK_ALL_BACKENDS_CHANGED();
                                 }
-                                ShowHelpMarker("Select the input colour space that the game uses.\n"
-                                               "Non-Linear / sRGB: Might improve FSR4 upscaling quality, might "
-                                               "increase ghosting.\n"
-                                               "PQ: Rarest, might increase ghosting and break lights.");
+                                ShowHelpMarker("选择游戏使用的输入色彩空间。\n"
+                                               "非线性/sRGB：可能提高 FSR4 升频质量，也可能增加重影。\n"
+                                               "PQ：最少见，可能增加重影并破坏光照。");
 
                                 // FSR 4 Presets
-                                const char* presets[] = { "Default",  "Preset 0", "Preset 1", "Preset 2",
-                                                          "Preset 3", "Preset 4", "Preset 5" };
+                                const char* presets[] = { "默认",  "预设 0", "预设 1", "预设 2",
+                                                          "预设 3", "预设 4", "预设 5" };
                                 int currentPresetIdx =
                                     config->Fsr4Preset.has_value() ? config->Fsr4Preset.value() + 1 : 0;
 
@@ -3354,7 +3394,7 @@ bool MenuCommon::RenderMenu()
                                     currentPresetIdx = 0;
 
                                 ImGui::SetNextItemWidth(150.0f * menuResScale);
-                                if (ImGui::Combo("FSR4 Preset", &currentPresetIdx, presets, IM_ARRAYSIZE(presets)))
+                                if (ImGui::Combo("FSR4 预设", &currentPresetIdx, presets, IM_ARRAYSIZE(presets)))
                                 {
                                     if (currentPresetIdx == 0)
                                         config->Fsr4Preset.reset();
@@ -3365,24 +3405,20 @@ bool MenuCommon::RenderMenu()
                                     MARK_ALL_BACKENDS_CHANGED();
                                 }
                                 ShowHelpMarker(
-                                    "Each internal FSR4 preset is tuned for a specific resolution.\n"
-                                    "Selecting an FSR4 preset won't change the in-game\nupscaler preset!!!\n\n"
-                                    "Preset 0 is meant for FSR Native AA\n"
-                                    "Preset 1 is meant for Quality/Ultra Quality\n"
-                                    "Preset 2 is meant for Balanced\n"
-                                    "Preset 3 is meant for Performance\n"
-                                    "Preset 4 is meant for DRS\n"
-                                    "Preset 5 is meant for Ultra Performance");
+                                    "每个 FSR4 内部预设都针对特定分辨率调校。\n"
+                                    "选择 FSR4 预设不会改变游戏内的升频预设！\n\n"
+                                    "预设 0：FSR 原生 AA\n预设 1：质量/超级质量\n预设 2：平衡\n"
+                                    "预设 3：性能\n预设 4：DRS\n预设 5：超级性能");
 
                                 // Display the active preset right next to the combo box instead of using a table
                                 ImGui::SameLine();
                                 if (state.currentFsr4Preset.has_value())
-                                    ImGui::TextDisabled("(Active: %d)", state.currentFsr4Preset.value());
+                                    ImGui::TextDisabled("（已激活: %d）", state.currentFsr4Preset.value());
                                 else if (FSR4ModelSelection::IsInt8FsrHooked())
                                     ImGui::TextColored(toneMapColor(ImVec4(1.f, 0.8f, 0.f, 1.f)),
-                                                       "(Potential FSR3 fallback)");
+                                                       "（可能已回退到 FSR3）");
                                 else
-                                    ImGui::TextDisabled("(Failed to hook)");
+                                    ImGui::TextDisabled("（挂钩失败）");
                             }
 
                             if (majorFsrVersion >= 3)
@@ -3390,7 +3426,7 @@ bool MenuCommon::RenderMenu()
                                 ImGui::Spacing();
 
                                 bool debugView = config->FsrDebugView.value_or_default();
-                                if (ImGui::Checkbox("Upscaler Debug View", &debugView))
+                                if (ImGui::Checkbox("升频器调试视图", &debugView))
                                 {
                                     config->FsrDebugView = debugView;
 
@@ -3404,32 +3440,27 @@ bool MenuCommon::RenderMenu()
 
                                 if (majorFsrVersion > 3)
                                 {
-                                    ShowHelpMarker("Top left: Dilated Motion Vectors\n"
-                                                   "Top right: Predicted Blend Factor");
+                                    ShowHelpMarker("左上：扩张运动矢量\n上中：受保护区域\n右上：扩张深度\n"
+                                                   "右上：预测混合系数");
                                 }
                                 else
                                 {
-                                    ShowHelpMarker("Top left: Dilated Motion Vectors\n"
-                                                   "Top middle: Protected Areas\n"
-                                                   "Top right: Dilated Depth\n"
-                                                   "Middle: Upscaled frame\n"
-                                                   "Bottom left: Disocclusion mask\n"
-                                                   "Bottom middle: Reactiveness\n"
-                                                   "Bottom right: Detail Protection Takedown");
+                                    ShowHelpMarker("左上：扩张运动矢量\n上中：受保护区域\n右上：扩张深度\n"
+                                                   "中间：升频帧\n左下：去遮挡遮罩\n下中：反应度\n"
+                                                   "右下：细节保护衰减");
                                 }
 
                                 if (majorFsrVersion > 3)
                                 {
                                     ImGui::SameLine(0.0f, 20.0f * menuResScale);
                                     bool fsr4wm = config->Fsr4EnableWatermark.value_or_default();
-                                    if (ImGui::Checkbox("Watermark", &fsr4wm))
+                                    if (ImGui::Checkbox("水印", &fsr4wm))
                                     {
                                         LOG_DEBUG("FSR4 Watermark set to {}", fsr4wm);
                                         config->Fsr4EnableWatermark = fsr4wm;
                                     }
 
-                                    ShowHelpMarker("After changing this option, please Save Settings.\n"
-                                                   "It will be applied on next launch.");
+                                    ShowHelpMarker("更改此选项后请保存设置。\n将在下次启动时应用。");
                                 }
                             }
 
@@ -3440,12 +3471,12 @@ bool MenuCommon::RenderMenu()
 
                                 if (currentFeature != nullptr)
                                 {
-                                    ImGui::Text("FSR 3.1 Presets:");
+                                    ImGui::Text("FSR 3.1 预设：");
 
                                     ImGui::SameLine(0.0f, 6.0f);
 
                                     // This will be applied by default
-                                    if (ImGui::Button("Stability"))
+                                    if (ImGui::Button("稳定性"))
                                     {
                                         auto const scaleRatioX = (float) currentFeature->TargetWidth() /
                                                                  (float) currentFeature->RenderWidth();
@@ -3466,7 +3497,7 @@ bool MenuCommon::RenderMenu()
 
                                     ImGui::SameLine(0.0f, 6.0f);
 
-                                    if (ImGui::Button("Motion"))
+                                    if (ImGui::Button("运动"))
                                     {
                                         auto const scaleRatioX = (float) currentFeature->TargetWidth() /
                                                                  (float) currentFeature->RenderWidth();
@@ -3487,7 +3518,7 @@ bool MenuCommon::RenderMenu()
 
                                     ImGui::SameLine(0.0f, 6.0f);
 
-                                    if (ImGui::Button("Default"))
+                                    if (ImGui::Button("默认"))
                                     {
                                         config->FsrVelocity = 1.0f;
                                         config->FsrReactiveScale = 1.0f;
@@ -3499,7 +3530,7 @@ bool MenuCommon::RenderMenu()
 
                                 ImGui::Spacing();
 
-                                if (auto ch = ScopedCollapsingHeader("FSR 3 Upscaler Manual Tuning"); ch.IsHeaderOpen())
+                                if (auto ch = ScopedCollapsingHeader("FSR 3 升频器手动调校"); ch.IsHeaderOpen())
                                 {
                                     ScopedIndent indent {};
                                     ImGui::Spacing();
@@ -3508,54 +3539,47 @@ bool MenuCommon::RenderMenu()
                                     ImGui::PushItemWidth(220.0f * menuResScale);
 
                                     float velocity = config->FsrVelocity.value_or_default();
-                                    if (ImGui::SliderFloat("Velocity Factor", &velocity, 0.00f, 1.0f, "%.3f"))
+                                    if (ImGui::SliderFloat("速度系数", &velocity, 0.00f, 1.0f, "%.3f"))
                                         config->FsrVelocity = velocity;
 
-                                    ShowHelpMarker("Value of 0.0f can improve temporal stability of bright pixels\n"
-                                                   "Lower values are more stable with ghosting\n"
-                                                   "Higher values are more pixelly, but less ghosting");
+                                    ShowHelpMarker("0.0 可改善亮像素的时序稳定性。\n"
+                                                   "值越低越稳定，但重影越多；值越高像素感越强，但重影越少。");
 
                                     if (currentFeature->Version() >= feature_version { 3, 1, 4 })
                                     {
                                         // Reactive Scale
                                         float reactiveScale = config->FsrReactiveScale.value_or_default();
-                                        if (ImGui::SliderFloat("Reactive Scale", &reactiveScale, 0.0f, 1.0f, "%.3f"))
+                                        if (ImGui::SliderFloat("反应度缩放", &reactiveScale, 0.0f, 1.0f, "%.3f"))
                                             config->FsrReactiveScale = reactiveScale;
 
-                                        ShowHelpMarker("Meant for development purpose to test if\n"
-                                                       "writing a larger value to reactive mask, reduces ghosting.");
+                                        ShowHelpMarker("开发测试用途：验证向反应式遮罩写入更大值能否减少重影。");
 
                                         // Shading Scale
                                         float shadingScale = config->FsrShadingScale.value_or_default();
-                                        if (ImGui::SliderFloat("Shading Scale", &shadingScale, 0.0f, 1.0f, "%.3f"))
+                                        if (ImGui::SliderFloat("着色变化缩放", &shadingScale, 0.0f, 1.0f, "%.3f"))
                                             config->FsrShadingScale = shadingScale;
 
-                                        ShowHelpMarker("Increasing this scales fsr3.1 computed shading\n"
-                                                       "change value at read to have higher reactiveness.");
+                                        ShowHelpMarker("提高此值会放大 FSR3.1 读取时计算的着色变化值，从而提高反应度。");
 
                                         // Accumulation Added Per Frame
                                         float accAddPerFrame = config->FsrAccAddPerFrame.value_or_default();
-                                        if (ImGui::SliderFloat("Acc. Added Per Frame", &accAddPerFrame, 0.00f, 1.0f,
+                                        if (ImGui::SliderFloat("每帧增加的累积量", &accAddPerFrame, 0.00f, 1.0f,
                                                                "%.3f"))
                                             config->FsrAccAddPerFrame = accAddPerFrame;
 
                                         ShowHelpMarker(
-                                            "Corresponds to amount of accumulation added per frame\n"
-                                            "at pixel coordinate where disocclusion occured or when\n"
-                                            "reactive mask value is > 0.0f. Decreasing this and \n"
-                                            "drawing the ghosting object (IE no mv) to reactive mask \n"
-                                            "with value close to 1.0f can decrease temporal ghosting.\n"
-                                            "Decreasing this could result in more thin feature pixels flickering.");
+                                            "发生去遮挡或反应式遮罩值大于 0 时，每帧在相应像素处增加的累积量。\n"
+                                            "降低此值并以接近 1.0 的值将重影对象（即无运动矢量）绘入反应式遮罩，"
+                                            "可减少时序重影，但可能使更多细小特征闪烁。");
 
                                         // Min Disocclusion Accumulation
                                         float minDisOccAcc = config->FsrMinDisOccAcc.value_or_default();
-                                        if (ImGui::SliderFloat("Min. Disocclusion Acc.", &minDisOccAcc, -1.0f, 1.0f,
+                                        if (ImGui::SliderFloat("最小去遮挡累积量", &minDisOccAcc, -1.0f, 1.0f,
                                                                "%.3f"))
                                             config->FsrMinDisOccAcc = minDisOccAcc;
 
-                                        ShowHelpMarker("Increasing this value may reduce white pixel temporal\n"
-                                                       "flickering around swaying thin objects that are disoccluding \n"
-                                                       "one another often. Too high value may increase ghosting.");
+                                        ShowHelpMarker("提高此值可能减少频繁互相遮挡的摆动细物体周围的白色像素时序闪烁。\n"
+                                                       "值过高可能增加重影。");
                                     }
 
                                     ImGui::PopItemWidth();
@@ -3575,9 +3599,9 @@ bool MenuCommon::RenderMenu()
                         const bool usesDlssd = currentFeature->Name() == "DLSSD";
 
                         if (usesDlssd)
-                            ImGui::SeparatorText("DLSSD Settings");
+                            ImGui::SeparatorText("DLSSD 设置");
                         else
-                            ImGui::SeparatorText("DLSS Settings");
+                            ImGui::SeparatorText("DLSS 设置");
 
                         auto overridden =
                             usesDlssd ? state.dlssdPresetsOverriddenExternally : state.dlssPresetsOverriddenExternally;
@@ -3585,9 +3609,8 @@ bool MenuCommon::RenderMenu()
                         if (overridden)
                         {
                             ImGui::TextColored(toneMapColor(ImVec4(1.f, 0.8f, 0.f, 1.f)),
-                                               "Presets are overridden externally");
-                            ShowHelpMarker("This usually happens due to using tools\n"
-                                           "such as Nvidia App or Nvidia Inspector");
+                                               "预设已被外部覆盖");
+                            ShowHelpMarker("通常是由 Nvidia App 或 Nvidia Inspector 等工具造成的");
                             // ImGui::Text("Selecting setting below will disable that external override\n"
                             //             "but you need to Save Settings and restart the game");
 
@@ -3597,27 +3620,25 @@ bool MenuCommon::RenderMenu()
                         if (usesDlssd)
                         {
                             if (bool pOverride = config->DLSSDRenderPresetOverride.value_or_default();
-                                ImGui::Checkbox("Render Presets Override", &pOverride))
+                                ImGui::Checkbox("覆盖渲染预设", &pOverride))
                                 config->DLSSDRenderPresetOverride = pOverride;
 
-                            ShowHelpMarker("Each render preset has it strengths and weaknesses\n"
-                                           "Override to potentially improve image quality\n"
-                                           "Press apply after enable/disable");
+                            ShowHelpMarker("每个渲染预设各有优缺点。覆盖预设可能改善画质。\n启用或禁用后请点击应用。");
 
                             /*
                             auto currentPresetIndex = GetPresetIndex(currentFeature, true);
 
                             if (currentPresetIndex == 0)
-                                ImGui::Text("Current Preset: Default");
+                                ImGui::Text("当前预设：默认");
                             else
-                                ImGui::Text("Current Preset: %c", 64 + currentPresetIndex);
+                                ImGui::Text("当前预设：%c", 64 + currentPresetIndex);
                             */
 
                             ImGui::BeginDisabled(
                                 !config->DLSSDRenderPresetOverride.value_or_default() /*|| overridden*/);
                             ImGui::PushItemWidth(135.0f * menuResScale);
 
-                            AddDLSSDRenderPreset("Override Preset", &comboPreset);
+                            AddDLSSDRenderPreset("覆盖预设", &comboPreset);
 
                             ImGui::PopItemWidth();
                             ImGui::EndDisabled();
@@ -3625,27 +3646,25 @@ bool MenuCommon::RenderMenu()
                         else
                         {
                             if (bool pOverride = config->RenderPresetOverride.value_or_default();
-                                ImGui::Checkbox("Render Presets Override", &pOverride))
+                                ImGui::Checkbox("覆盖渲染预设", &pOverride))
                                 config->RenderPresetOverride = pOverride;
 
-                            ShowHelpMarker("Each render preset has it strengths and weaknesses\n"
-                                           "Override to potentially improve image quality\n"
-                                           "Press Apply after enable/disable");
+                            ShowHelpMarker("每个渲染预设各有优缺点。覆盖预设可能改善画质。\n启用或禁用后请点击应用。");
 
                             /*
                             auto currentPresetIndex = GetPresetIndex(currentFeature, false);
 
                             if (currentPresetIndex == 0)
-                                ImGui::Text("Current Preset: Default");
+                                ImGui::Text("当前预设：默认");
                             else
-                                ImGui::Text("Current Preset: %c", 64 + currentPresetIndex);
+                                ImGui::Text("当前预设：%c", 64 + currentPresetIndex);
                             */
 
                             ImGui::BeginDisabled(!config->RenderPresetOverride.value_or_default() /*|| overridden*/);
 
                             ImGui::PushItemWidth(135.0f * menuResScale);
 
-                            AddDLSSRenderPreset("Override Preset", &comboPreset);
+                            AddDLSSRenderPreset("覆盖预设", &comboPreset);
 
                             ImGui::PopItemWidth();
                             ImGui::EndDisabled();
@@ -3653,7 +3672,7 @@ bool MenuCommon::RenderMenu()
 
                         ImGui::SameLine(0.0f, 6.0f);
 
-                        if (ImGui::Button("Apply Changes"))
+                        if (ImGui::Button("应用更改##DLSS预设"))
                         {
                             LOG_DEBUG("Applying DLSS/DLSSD preset override changes, preset index: {}",
                                       comboPreset.value_or_default());
@@ -3674,20 +3693,18 @@ bool MenuCommon::RenderMenu()
 
                         ImGui::Spacing();
 
-                        if (auto ch = ScopedCollapsingHeader(usesDlssd ? "Advanced DLSSD Settings"
-                                                                       : "Advanced DLSS Settings");
+                        if (auto ch = ScopedCollapsingHeader(usesDlssd ? "高级 DLSSD 设置"
+                                                                       : "高级 DLSS 设置");
                             ch.IsHeaderOpen())
                         {
                             ScopedIndent indent {};
                             ImGui::Spacing();
 
                             bool appIdOverride = config->UseGenericAppIdWithDlss.value_or_default();
-                            if (ImGui::Checkbox("Use Generic App Id with DLSS", &appIdOverride))
+                            if (ImGui::Checkbox("DLSS 使用通用应用 ID", &appIdOverride))
                                 config->UseGenericAppIdWithDlss = appIdOverride;
 
-                            ShowHelpMarker("Use generic appid with NGX\n"
-                                           "Fixes OptiScaler preset override not working with certain games\n"
-                                           "Requires a game restart");
+                            ShowHelpMarker("对 NGX 使用通用应用 ID。\n可修复 OptiScaler 预设覆盖在部分游戏中无效的问题。\n需要重启游戏。");
 
                             ImGui::BeginDisabled(!config->RenderPresetOverride.value_or_default() || overridden);
                             ImGui::Spacing();
@@ -3695,21 +3712,21 @@ bool MenuCommon::RenderMenu()
 
                             if (usesDlssd)
                             {
-                                AddDLSSDRenderPreset("DLAA Preset", &config->DLSSDRenderPresetDLAA);
-                                AddDLSSDRenderPreset("UltraQ Preset", &config->DLSSDRenderPresetUltraQuality);
-                                AddDLSSDRenderPreset("Quality Preset", &config->DLSSDRenderPresetQuality);
-                                AddDLSSDRenderPreset("Balanced Preset", &config->DLSSDRenderPresetBalanced);
-                                AddDLSSDRenderPreset("Perf Preset", &config->DLSSDRenderPresetPerformance);
-                                AddDLSSDRenderPreset("UltraP Preset", &config->DLSSDRenderPresetUltraPerformance);
+                                AddDLSSDRenderPreset("DLAA 预设", &config->DLSSDRenderPresetDLAA);
+                                AddDLSSDRenderPreset("超级质量预设", &config->DLSSDRenderPresetUltraQuality);
+                                AddDLSSDRenderPreset("质量预设", &config->DLSSDRenderPresetQuality);
+                                AddDLSSDRenderPreset("平衡预设", &config->DLSSDRenderPresetBalanced);
+                                AddDLSSDRenderPreset("性能预设", &config->DLSSDRenderPresetPerformance);
+                                AddDLSSDRenderPreset("超级性能预设", &config->DLSSDRenderPresetUltraPerformance);
                             }
                             else
                             {
-                                AddDLSSRenderPreset("DLAA Preset", &config->RenderPresetDLAA);
-                                AddDLSSRenderPreset("UltraQ Preset", &config->RenderPresetUltraQuality);
-                                AddDLSSRenderPreset("Quality Preset", &config->RenderPresetQuality);
-                                AddDLSSRenderPreset("Balanced Preset", &config->RenderPresetBalanced);
-                                AddDLSSRenderPreset("Perf Preset", &config->RenderPresetPerformance);
-                                AddDLSSRenderPreset("UltraP Preset", &config->RenderPresetUltraPerformance);
+                                AddDLSSRenderPreset("DLAA 预设", &config->RenderPresetDLAA);
+                                AddDLSSRenderPreset("超级质量预设", &config->RenderPresetUltraQuality);
+                                AddDLSSRenderPreset("质量预设", &config->RenderPresetQuality);
+                                AddDLSSRenderPreset("平衡预设", &config->RenderPresetBalanced);
+                                AddDLSSRenderPreset("性能预设", &config->RenderPresetPerformance);
+                                AddDLSSRenderPreset("超级性能预设", &config->RenderPresetUltraPerformance);
                             }
                             ImGui::PopItemWidth();
                             ImGui::EndDisabled();
@@ -3728,32 +3745,32 @@ bool MenuCommon::RenderMenu()
                 // clang-format off
 
                 inputOptions = {
-                    { FGInput::NoFG, "None" },
-                    { FGInput::Nukems, "Nukem's DLSSG",
-                        "Limited to FSR3-FG\n\nRequires enabling DLSS-FG in game settings\nSupports HUDless out of the box\nUses Streamline swapchain for pacing" },
+                    { FGInput::NoFG, "无" },
+                    { FGInput::Nukems, "Nukem 的 DLSSG",
+                        "仅限 FSR3-FG\n\n需要在游戏设置中启用 DLSS-FG\n原生支持无 HUD 资源\n使用 Streamline 交换链控制帧节奏" },
                     { FGInput::FSRFG, "FSR 3.1 FG",
-                        "Can be used with any FG Output\n\nRequires enabling FSR-FG in game settings\nSupports HUDless out of the box" },
-                    { FGInput::DLSSG, "DLSSG via Streamline",
-                        "Can be used with any FG Output\n\nRequires enabling DLSS-FG in game settings\nSupports HUDless out of the box\n\nLimited to games that use Streamline v2" },
+                        "可搭配任意 FG 输出\n\n需要在游戏设置中启用 FSR-FG\n原生支持无 HUD 资源" },
+                    { FGInput::DLSSG, "DLSSG（通过 Streamline）",
+                        "可搭配任意 FG 输出\n\n需要在游戏设置中启用 DLSS-FG\n原生支持无 HUD 资源\n\n仅限使用 Streamline v2 的游戏" },
                     { FGInput::XeFG, "XeFG" },
-                    { FGInput::Upscaler, "OptiFG (Upscaler)",
-                        "Upscaler must be enabled\n\nCan be used with any FG Output, but might be imperfect with some\nTo prevent UI glitching, HUDfix required" },
+                    { FGInput::Upscaler, "OptiFG（升频器）",
+                        "必须启用升频器\n\n可搭配任意 FG 输出，但部分组合可能不完美\n需要 HUDFix 防止 UI 异常" },
                     { FGInput::FSRFG30, "FSR 3.0 FG",
-                        "Can be used with any FG Output\n\nRequires enabling FSR-FG in game settings\nSupports HUDless out of the box" }
+                        "可搭配任意 FG 输出\n\n需要在游戏设置中启用 FSR-FG\n原生支持无 HUD 资源" }
                 };
 
                 // clang-format on
 
                 // XeFG requirements
                 auto constexpr xefgInputIndex = (uint32_t) FGInput::XeFG;
-                inputOptions[xefgInputIndex].set_disabled(true, "Support not implemented, they meant FG Output");
+                inputOptions[xefgInputIndex].set_disabled(true, "尚未实现支持；这里应选择 FG 输出");
 
                 // OptiFG requirements
                 auto constexpr optiFgIndex = (uint32_t) FGInput::Upscaler;
                 inputOptions[optiFgIndex].set_disabled(state.api == API::DX11 || state.api == API::Vulkan,
-                                                       "Unsupported API");
+                                                       "不支持此 API");
                 inputOptions[optiFgIndex].set_disabled(state.workingMode == WorkingMode::Nvngx,
-                                                       "Unsupported Opti working mode");
+                                                       "不支持当前 Opti 工作模式");
 
                 if (!inputOptions[optiFgIndex].disabled && state.activeFgOutput == FGOutput::FSRFG &&
                     !FfxApiProxy::IsFGReady() && !fsr31InitTried)
@@ -3761,34 +3778,34 @@ bool MenuCommon::RenderMenu()
                     fsr31InitTried = true;
                     FfxApiProxy::InitFfxDx12();
                     inputOptions[optiFgIndex].set_disabled(!FfxApiProxy::IsFGReady(),
-                                                           "amd_fidelityfx_dx12.dll is missing");
+                                                           "缺少 amd_fidelityfx_dx12.dll");
                 }
                 else if (!inputOptions[optiFgIndex].disabled && state.activeFgOutput == FGOutput::XeFG &&
                          !xefgInitTried && XeFGProxy::Module() == nullptr)
                 {
                     xefgInitTried = true;
                     XeFGProxy::InitXeFG();
-                    inputOptions[optiFgIndex].set_disabled(XeFGProxy::Module() == nullptr, "libxess_fg.dll is missing");
+                    inputOptions[optiFgIndex].set_disabled(XeFGProxy::Module() == nullptr, "缺少 libxess_fg.dll");
                 }
 
                 // DLSSG inputs requirements
                 auto constexpr dlssgInputIndex = (uint32_t) FGInput::DLSSG;
-                inputOptions[dlssgInputIndex].set_disabled(state.swapchainApi == API::DX11, "Unsupported API");
+                inputOptions[dlssgInputIndex].set_disabled(state.swapchainApi == API::DX11, "不支持此 API");
 
                 if (!inputOptions[dlssgInputIndex].disabled && state.streamlineVersion.major < 2)
                 {
                     inputOptions[dlssgInputIndex].set_disabled(
-                        true, std::format("Unsupported Streamline version: {}.{}.{}", state.streamlineVersion.major,
+                        true, std::format("不支持的 Streamline 版本：{}.{}.{}", state.streamlineVersion.major,
                                           state.streamlineVersion.minor, state.streamlineVersion.patch));
                 }
 
                 // FSRFG inputs requirements
                 auto constexpr fsrfgInputIndex = (uint32_t) FGInput::FSRFG;
-                inputOptions[fsrfgInputIndex].set_disabled(state.swapchainApi != API::DX12, "Unsupported API");
+                inputOptions[fsrfgInputIndex].set_disabled(state.swapchainApi != API::DX12, "不支持此 API");
 
                 // FSRFG30 inputs requirements
                 auto constexpr fsrfg30InputIndex = (uint32_t) FGInput::FSRFG30;
-                inputOptions[fsrfg30InputIndex].set_disabled(state.swapchainApi != API::DX12, "Unsupported API");
+                inputOptions[fsrfg30InputIndex].set_disabled(state.swapchainApi != API::DX12, "不支持此 API");
 
                 if (!config->FGInput.has_value())
                     config->FGInput = config->FGInput.value_or_default(); // need to have a value before combo
@@ -3801,42 +3818,42 @@ bool MenuCommon::RenderMenu()
                 // clang-format off
 
                 outputOptions = {
-                    { FGOutput::NoFG, "None" },
-                    { FGOutput::Nukems, "FSR3-FG via Nukem's", "Enable DLSS-FG in game settings\n\nLightest, but most artifacts (esp. in fast motion)" },
-                    { FGOutput::FSRFG, "FSR FG", "FSR3/4-FG, RDNA4 autoupgrades to FSR4-FG\n\nFSR4-FG sometimes better/worse than XeFG" },
-                    { FGOutput::DLSSG, "DLSSG", "Support not implemented" },
-                    { FGOutput::XeFG, "XeFG", "XeFG - heaviest, but best universal FG\n\nXeFG 3 overall deals best with HUD\n\nEnable UI Composition if HUD ghosting" }
+                    { FGOutput::NoFG, "无" },
+                    { FGOutput::Nukems, "FSR3-FG（通过 Nukem）", "请在游戏设置中启用 DLSS-FG\n\n负载最低，但伪影最多（尤其在快速运动时）" },
+                    { FGOutput::FSRFG, "FSR FG", "FSR3/4-FG；RDNA4 会自动升级到 FSR4-FG\n\nFSR4-FG 与 XeFG 相比可能更好，也可能更差" },
+                    { FGOutput::DLSSG, "DLSSG", "尚未实现支持" },
+                    { FGOutput::XeFG, "XeFG", "XeFG 负载最重，但通用效果最好\n\nXeFG 3 总体上最擅长处理 HUD\n\nHUD 出现重影时请启用 UI 合成" }
                 };
 
                 // clang-format on
 
                 // DLSSG output requirements
                 auto constexpr dlssgOutputIndex = (uint32_t) FGOutput::DLSSG;
-                outputOptions[dlssgOutputIndex].set_disabled(true, "Support not implemented");
+                outputOptions[dlssgOutputIndex].set_disabled(true, "尚未实现支持");
 
                 // Nukem's FG mod requirements
                 auto constexpr nukemsInputIndex = (uint32_t) FGInput::Nukems;
                 auto constexpr nukemsOutputIndex = (uint32_t) FGOutput::Nukems;
                 if (state.workingMode == WorkingMode::Nvngx)
                 {
-                    inputOptions[nukemsInputIndex].set_disabled(true, "Unsupported Opti working mode");
-                    outputOptions[nukemsOutputIndex].set_disabled(true, "Unsupported Opti working mode");
+                    inputOptions[nukemsInputIndex].set_disabled(true, "不支持当前 Opti 工作模式");
+                    outputOptions[nukemsOutputIndex].set_disabled(true, "不支持当前 Opti 工作模式");
                 }
                 else if (!state.NukemsFilesAvailable)
                 {
                     inputOptions[nukemsInputIndex].set_disabled(true,
-                                                                "Missing the dlssg_to_fsr3_amd_is_better.dll file");
+                                                                "缺少 dlssg_to_fsr3_amd_is_better.dll 文件");
                     outputOptions[nukemsOutputIndex].set_disabled(true,
-                                                                  "Missing the dlssg_to_fsr3_amd_is_better.dll file");
+                                                                  "缺少 dlssg_to_fsr3_amd_is_better.dll 文件");
                 }
 
                 // FSR FG output requirements
                 auto constexpr fsrfgOutputIndex = (uint32_t) FGOutput::FSRFG;
-                outputOptions[fsrfgOutputIndex].set_disabled(state.swapchainApi != API::DX12, "Unsupported API");
+                outputOptions[fsrfgOutputIndex].set_disabled(state.swapchainApi != API::DX12, "不支持此 API");
 
                 // XeFG output requirements
                 auto constexpr xefgOutputIndex = (uint32_t) FGOutput::XeFG;
-                outputOptions[xefgOutputIndex].set_disabled(state.swapchainApi != API::DX12, "Unsupported API");
+                outputOptions[xefgOutputIndex].set_disabled(state.swapchainApi != API::DX12, "不支持此 API");
 
                 // Unsupported FG input selected
                 if (config->FGInput != FGInput::NoFG && inputOptions[(uint32_t) state.activeFgInput].disabled &&
@@ -3858,28 +3875,27 @@ bool MenuCommon::RenderMenu()
                     config->FGOutput = config->FGOutput.value_or_default(); // need to have a value before combo
 
                 {
-                    ImGui::SeparatorText("Frame Generation");
+                    ImGui::SeparatorText("帧生成");
 
                     if (ImGui::BeginTable("fgSelection", 2, ImGuiTableFlags_SizingStretchSame))
                     {
                         ImGui::TableNextColumn();
 
-                        PopulateCombo("FG Input", config->FGInput, inputOptions);
-                        ShowTooltip("The data source to be used for FG\n"
-                                    "The native FG which the game supports");
+                        PopulateCombo("FG 输入", config->FGInput, inputOptions);
+                        ShowTooltip("供 FG 使用的数据来源，即游戏原生支持的 FG");
 
                         ImGui::TableNextColumn();
 
                         const bool disableOutputs = config->FGInput.value_or_default() == FGInput::Nukems;
 
                         ImGui::BeginDisabled(disableOutputs);
-                        PopulateCombo("FG Output", config->FGOutput, outputOptions);
+                        PopulateCombo("FG 输出", config->FGOutput, outputOptions);
                         ImGui::EndDisabled();
 
                         if (disableOutputs)
-                            ShowTooltip("Doesn't matter with the selected FG Source");
+                            ShowTooltip("所选 FG 来源下此项无影响");
                         else
-                            ShowTooltip("The FG that you will actually be using");
+                            ShowTooltip("实际使用的帧生成技术");
 
                         ImGui::EndTable();
                     }
@@ -3904,7 +3920,7 @@ bool MenuCommon::RenderMenu()
                     {
                         ImGui::Spacing();
                         ImGui::TextColored(toneMapColor(ImVec4(1.f, 0.f, 0.0f, 1.f)),
-                                           "Save Settings and restart to apply the changes");
+                                           "保存设置并重启游戏以应用更改");
                         ImGui::Spacing();
                     }
 
@@ -3913,21 +3929,19 @@ bool MenuCommon::RenderMenu()
                          state.activeFgInput != FGInput::NoFG && state.activeFgInput != FGInput::Nukems) &&
                         fgOutput)
                     {
-                        ImGui::Checkbox("Show Detected UI", &state.FGHudlessCompare);
-                        ShowHelpMarker("Needs HUDless texture to compare with final image.\n"
-                                       "UI elements and ONLY UI elements should have a pink tint!");
+                        ImGui::Checkbox("显示检测到的 UI", &state.FGHudlessCompare);
+                        ShowHelpMarker("需要无 HUD 纹理与最终图像比较。\n只有 UI 元素应呈现粉色！");
 
                         const auto isUsingUIAny = fgOutput->IsUsingUIAny();
 
                         ImGui::BeginDisabled(!isUsingUIAny);
 
                         if (bool drawUIOverFG = config->FGDrawUIOverFG.value_or_default();
-                            ImGui::Checkbox("Draw UI over", &drawUIOverFG))
+                            ImGui::Checkbox("在最终图像上绘制 UI", &drawUIOverFG))
                         {
                             config->FGDrawUIOverFG = drawUIOverFG;
                         }
-                        ShowHelpMarker("Draws UI resource over the final image\n"
-                                       "If no UI visible, enable this!");
+                        ShowHelpMarker("将 UI 资源绘制到最终图像上。\n看不到 UI 时请启用此项！");
 
                         ImGui::EndDisabled();
 
@@ -3936,11 +3950,11 @@ bool MenuCommon::RenderMenu()
                         ImGui::BeginDisabled(!isUsingUIAny || !config->FGDrawUIOverFG.value_or_default());
 
                         if (bool uiPremultipliedAlpha = config->FGUIPremultipliedAlpha.value_or_default();
-                            ImGui::Checkbox("UI Premult. alpha", &uiPremultipliedAlpha))
+                            ImGui::Checkbox("UI 预乘 Alpha", &uiPremultipliedAlpha))
                         {
                             config->FGUIPremultipliedAlpha = uiPremultipliedAlpha;
                         }
-                        ShowHelpMarker("If UI is too faint, disable this option");
+                        ShowHelpMarker("UI 过淡时请禁用此选项");
 
                         ImGui::EndDisabled();
                     }
@@ -3950,7 +3964,7 @@ bool MenuCommon::RenderMenu()
                     {
                         ImGui::Spacing();
 
-                        if (auto ch = ScopedCollapsingHeader("Advanced FG Settings"); ch.IsHeaderOpen())
+                        if (auto ch = ScopedCollapsingHeader("高级 FG 设置"); ch.IsHeaderOpen())
                         {
                             ScopedIndent indent {};
                             ImGui::Spacing();
@@ -3966,13 +3980,13 @@ bool MenuCommon::RenderMenu()
                                 bool disableUI = config->FGDisableUI.value_or_default();
                                 ImGui::BeginDisabled(!isUsingUIAny && !disableUI);
 
-                                if (ImGui::Checkbox("Disable UI texture", &disableUI))
+                                if (ImGui::Checkbox("禁用 UI 纹理", &disableUI))
                                 {
                                     config->FGDisableUI = disableUI;
                                     fgOutput->UpdateTarget();
                                 }
 
-                                ShowHelpMarker("For when the game sends a UI texture, but you want to disable it");
+                                ShowHelpMarker("游戏提供了 UI 纹理，但希望禁用它时使用");
 
                                 ImGui::EndDisabled();
 
@@ -3981,82 +3995,79 @@ bool MenuCommon::RenderMenu()
                                 bool disableHudless = config->FGDisableHudless.value_or_default();
                                 ImGui::BeginDisabled(!isUsingHudlessAny && !disableHudless);
 
-                                if (ImGui::Checkbox("Disable HUDless", &disableHudless))
+                                if (ImGui::Checkbox("禁用无 HUD 资源", &disableHudless))
                                 {
                                     config->FGDisableHudless = disableHudless;
                                 }
 
-                                ShowHelpMarker("For when the game sends HUDless, but you want to disable it");
+                                ShowHelpMarker("游戏提供了无 HUD 资源，但希望禁用它时使用");
 
                                 ImGui::EndDisabled();
 
                                 bool depthValidNow = config->FGDepthValidNow.value_or_default();
-                                if (ImGui::Checkbox("Depth as ValidNow", &depthValidNow))
+                                if (ImGui::Checkbox("深度标记为 ValidNow", &depthValidNow))
                                     config->FGDepthValidNow = depthValidNow;
 
-                                ShowHelpMarker("Will use more VRAM, but Uniscaler needs this\n"
-                                               "Maybe some other games might need too");
+                                ShowHelpMarker("会占用更多显存，但 Uniscaler 需要此项；其他部分游戏也可能需要");
 
                                 ImGui::SameLine(0.0f, 16.0f);
 
                                 bool velocityValidNow = config->FGVelocityValidNow.value_or_default();
-                                if (ImGui::Checkbox("Velocity as ValidNow", &velocityValidNow))
+                                if (ImGui::Checkbox("速度标记为 ValidNow", &velocityValidNow))
                                     config->FGVelocityValidNow = velocityValidNow;
 
-                                ShowHelpMarker("Will use more VRAM, but Uniscaler needs this\n"
-                                               "Maybe some other games might need too");
+                                ShowHelpMarker("会占用更多显存，但 Uniscaler 需要此项；其他部分游戏也可能需要");
 
                                 bool hudlessValidNow = config->FGHudlessValidNow.value_or_default();
-                                if (ImGui::Checkbox("HUDless as ValidNow", &hudlessValidNow))
+                                if (ImGui::Checkbox("无 HUD 资源标记为 ValidNow", &hudlessValidNow))
                                     config->FGHudlessValidNow = hudlessValidNow;
 
-                                ShowHelpMarker("Will use more VRAM, but some games might need this");
+                                ShowHelpMarker("会占用更多显存，但部分游戏可能需要此项");
 
                                 ImGui::SameLine(0.0f, 16.0f);
 
                                 bool firstHudless = config->FGOnlyAcceptFirstHudless.value_or_default();
-                                if (ImGui::Checkbox("Accept First HUDless", &firstHudless))
+                                if (ImGui::Checkbox("接受首个无 HUD 资源", &firstHudless))
                                     config->FGOnlyAcceptFirstHudless = firstHudless;
 
-                                ShowHelpMarker("If source tags more than one HUDless, only use the first one");
+                                ShowHelpMarker("如果输入标记了多个无 HUD 资源，则仅使用第一个");
 
                                 if (bool skipReset = config->FGSkipReset.value_or_default();
-                                    ImGui::Checkbox("Skip Reset", &skipReset))
+                                    ImGui::Checkbox("跳过重置", &skipReset))
                                 {
                                     config->FGSkipReset = skipReset;
                                 }
 
-                                ShowHelpMarker("Don't use reset signals from FG Inputs");
+                                ShowHelpMarker("不使用 FG 输入发送的重置信号");
 
                                 ImGui::EndDisabled();
 
                                 ImGui::PushItemWidth(80.0f * menuResScale);
 
                                 auto frameAhead = config->FGAllowedFrameAhead.value_or_default();
-                                if (ImGui::InputInt("Frame Ahead", &frameAhead, 1, 1) && frameAhead > 0 &&
+                                if (ImGui::InputInt("预生成帧数", &frameAhead, 1, 1) && frameAhead > 0 &&
                                     frameAhead < 4)
                                 {
                                     config->FGAllowedFrameAhead = frameAhead;
                                 }
 
-                                ShowHelpMarker("Number of frames the FG is allowed to be ahead of the game\n"
-                                               "Might prevent FG on/off switching, but also might cause issues");
+                                ShowHelpMarker("允许 FG 领先游戏的帧数。\n可能避免 FG 反复开关，也可能引发问题。");
 
                                 ImGui::PopItemWidth();
 
                                 ImGui::SameLine(0.0f, 16.0f);
 
-                                const char* ftSources[] = { "Input", "Opti", "Zero" };
-                                const char* ftSourceInfos[] = { "Uses frametimes provided by\nDLSSG or FSR-FG ",
-                                                                "Uses frametimes calculated by Opti",
-                                                                "Let XeFG to handle frametimes" };
+                                const char* ftSources[] = { "输入", "Opti", "零" };
+                                const char* ftSourceInfos[] = { "使用 DLSSG 或 FSR-FG 提供的帧时间",
+                                                                "使用 Opti 计算的帧时间",
+                                                                "由 XeFG 处理帧时间" };
 
                                 auto currentSet = (int) config->FTInput.value_or_default();
                                 auto currentSourceCount = state.activeFgOutput == FGOutput::XeFG ? 3 : 2;
 
                                 ImGui::PushItemWidth(95.0f * menuResScale);
 
-                                if (ImGui::BeginCombo("FT Input", ftSources[currentSet]))
+                                if (ImGui::BeginCombo("帧时间输入", ftSources[currentSet]))
                                 {
                                     for (size_t i = 0; i < currentSourceCount; i++)
                                     {
@@ -4077,8 +4088,7 @@ bool MenuCommon::RenderMenu()
 
                                 ImGui::PopItemWidth();
 
-                                ShowHelpMarker("Select source for frametime\n"
-                                               "Might help frame pacing and stutter issues");
+                                ShowHelpMarker("选择帧时间来源。\n可能改善帧节奏和卡顿问题。");
                             }
                         }
                     }
@@ -4093,7 +4103,7 @@ bool MenuCommon::RenderMenu()
                     if (state.activeFgInput != FGInput::Upscaler ||
                         (currentFeature != nullptr && !currentFeature->IsFrozen()) && FfxApiProxy::IsFGReady())
                     {
-                        ImGui::SeparatorText("Frame Generation (FSR FG)");
+                        ImGui::SeparatorText("帧生成（FSR FG）");
 
                         if (_ffxFGIndex < 0)
                             _ffxFGIndex = config->FfxFGIndex.value_or_default();
@@ -4116,11 +4126,11 @@ bool MenuCommon::RenderMenu()
                             }
                             ImGui::PopItemWidth();
 
-                            ShowHelpMarker("List of FGs reported by FFX SDK");
+                            ShowHelpMarker("FFX SDK 报告的帧生成器列表");
 
                             ImGui::SameLine(0.0f, 6.0f);
 
-                            if (ImGui::Button("Change FG") && _ffxFGIndex != config->FfxFGIndex.value_or_default())
+                            if (ImGui::Button("切换 FG") && _ffxFGIndex != config->FfxFGIndex.value_or_default())
                             {
                                 config->FfxFGIndex = _ffxFGIndex;
                                 state.FGchanged = true;
@@ -4129,7 +4139,7 @@ bool MenuCommon::RenderMenu()
                         }
 
                         bool fgActive = config->FGEnabled.value_or_default();
-                        if (ImGui::Checkbox("Active##2", &fgActive))
+                        if (ImGui::Checkbox("启用##2", &fgActive))
                         {
                             config->FGEnabled = fgActive;
                             LOG_DEBUG("FGEnabled set FGEnabled: {}", fgActive);
@@ -4137,10 +4147,10 @@ bool MenuCommon::RenderMenu()
                             if (config->FGEnabled.value_or_default())
                                 state.FGchanged = true;
                         }
-                        ShowHelpMarker("Enable Frame Generation");
+                        ShowHelpMarker("启用帧生成");
 
                         bool fgAsync = config->FGAsync.value_or_default();
-                        if (ImGui::Checkbox("Allow Async", &fgAsync))
+                        if (ImGui::Checkbox("允许异步", &fgAsync))
                         {
                             config->FGAsync = fgAsync;
 
@@ -4152,12 +4162,12 @@ bool MenuCommon::RenderMenu()
                             }
                         }
                         ShowHelpMarker(
-                            "Enable Async for better FG performance\nMight cause crashes, especially with HUD Fix!");
+                            "启用异步可提高 FG 性能，但可能导致崩溃，尤其是在使用 HUDFix 时！");
 
                         ImGui::SameLine(0.0f, 16.0f);
 
                         bool fgDV = config->FGDebugView.value_or_default();
-                        if (ImGui::Checkbox("Debug View##2", &fgDV))
+                        if (ImGui::Checkbox("调试视图##2", &fgDV))
                         {
                             config->FGDebugView = fgDV;
 
@@ -4167,96 +4177,90 @@ bool MenuCommon::RenderMenu()
                                 LOG_DEBUG("DebugView set FGChanged");
                             }
                         }
-                        ShowHelpMarker("Enable FSR3.1-FG Debug view\n\n"
-                                       "Top left: Game Motion Vectors\n"
-                                       "Top middle: GMV Depth\n"
-                                       "Top right: Optical Flow MV\n"
-                                       "Middle: Interpolated frame only\n"
-                                       "Bottom left: Disocclusion mask\n"
-                                       "Bottom middle: Interpolation source (w/o UI)\n"
-                                       "Bottom right: HUDless resource");
+                        ShowHelpMarker("启用 FSR3.1-FG 调试视图\n\n左上：游戏运动矢量\n上中：GMV 深度\n"
+                                       "右上：光流运动矢量\n中间：仅插值帧\n左下：去遮挡遮罩\n"
+                                       "下中：插值源（无 UI）\n右下：无 HUD 资源");
 
                         ImGui::SameLine(0.0f, 16.0f);
 
                         if (state.currentFG->Version().major > 3)
                         {
                             if (bool fgwm = config->FSRFGEnableWatermark.value_or_default();
-                                ImGui::Checkbox("FG Watermark", &fgwm))
+                                ImGui::Checkbox("FG 水印", &fgwm))
                             {
                                 LOG_DEBUG("FSRFGEnableWatermark set FGWatermark: {}", fgwm);
                                 config->FSRFGEnableWatermark = fgwm;
                             }
 
-                            ShowHelpMarker("After changing this option, please Save Settings\n"
-                                           "It will be applied on next launch.");
+                            ShowHelpMarker("更改此选项后请保存设置。\n将在下次启动时应用。");
                         }
 
                         ImGui::Spacing();
                         ImGui::Spacing();
-                        if (auto ch = ScopedCollapsingHeader("Extended FSR FG Settings"); ch.IsHeaderOpen())
+                        if (auto ch = ScopedCollapsingHeader("扩展 FSR FG 设置"); ch.IsHeaderOpen())
                         {
                             ScopedIndent indent {};
                             ImGui::Spacing();
 
-                            ImGui::Checkbox("FG Only Generated", &state.FGonlyGenerated);
-                            ShowHelpMarker("Display only FSR 3.1 Generated frames");
+                            ImGui::Checkbox("仅显示生成帧", &state.FGonlyGenerated);
+                            ShowHelpMarker("仅显示 FSR 3.1 生成的帧");
 
                             ImGui::SameLine(0.0f, 16.0f);
                             auto debugResetLines = config->FGDebugResetLines.value_or_default();
-                            if (ImGui::Checkbox("Debug Reset Lines", &debugResetLines))
+                            if (ImGui::Checkbox("调试重置线", &debugResetLines))
                             {
                                 config->FGDebugResetLines = debugResetLines;
                                 LOG_DEBUG("Enabled set FGDebugLines: {}", debugResetLines);
                             }
-                            ShowHelpMarker("Enables drawing of Interpolation skip lines");
+                            ShowHelpMarker("绘制插帧跳过线");
 
                             auto debugTearLines = config->FGDebugTearLines.value_or_default();
-                            if (ImGui::Checkbox("Debug Tear Lines", &debugTearLines))
+                            if (ImGui::Checkbox("调试撕裂线", &debugTearLines))
                             {
                                 config->FGDebugTearLines = debugTearLines;
                                 LOG_DEBUG("Enabled set FGDebugLines: {}", debugTearLines);
                             }
-                            ShowHelpMarker("Enables drawing of Tear and Interpolation skip lines");
+                            ShowHelpMarker("绘制撕裂线和插帧跳过线");
 
                             ImGui::SameLine(0.0f, 16.0f);
                             auto debugPacingLines = config->FGDebugPacingLines.value_or_default();
-                            if (ImGui::Checkbox("Debug Pacing Lines", &debugPacingLines))
+                            if (ImGui::Checkbox("调试帧节奏线", &debugPacingLines))
                             {
                                 config->FGDebugPacingLines = debugPacingLines;
                                 LOG_DEBUG("Enabled set FGDebugLines: {}", debugPacingLines);
                             }
-                            ShowHelpMarker("Enables drawing of Pacing lines");
+                            ShowHelpMarker("绘制帧节奏线");
 
                             ImGui::Spacing();
-                            if (ImGui::TreeNode("FG Rectangle Settings"))
+                            if (ImGui::TreeNode("FG 矩形区域设置"))
                             {
                                 ImGui::PushItemWidth(95.0f * menuResScale);
                                 int rectLeft = config->FGRectLeft.value_or(0);
-                                if (ImGui::InputInt("Rect Left", &rectLeft))
+                                if (ImGui::InputInt("矩形左边界", &rectLeft))
                                     config->FGRectLeft = rectLeft;
 
                                 ImGui::SameLine(0.0f, 16.0f);
                                 int rectTop = config->FGRectTop.value_or(0);
-                                if (ImGui::InputInt("Rect Top", &rectTop))
+                                if (ImGui::InputInt("矩形上边界", &rectTop))
                                     config->FGRectTop = rectTop;
 
                                 int rectWidth = config->FGRectWidth.value_or(0);
-                                if (ImGui::InputInt("Rect Width", &rectWidth))
+                                if (ImGui::InputInt("矩形宽度", &rectWidth))
                                     config->FGRectWidth = rectWidth;
 
                                 ImGui::SameLine(0.0f, 16.0f);
                                 int rectHeight = config->FGRectHeight.value_or(0);
-                                if (ImGui::InputInt("Rect Height", &rectHeight))
+                                if (ImGui::InputInt("矩形高度", &rectHeight))
                                     config->FGRectHeight = rectHeight;
 
                                 ImGui::PopItemWidth();
-                                ShowHelpMarker("Frame generation rectangle, adjust for letterboxed content");
+                                ShowHelpMarker("帧生成矩形区域，可针对黑边画面调整");
 
                                 ImGui::BeginDisabled(
                                     !config->FGRectLeft.has_value() && !config->FGRectTop.has_value() &&
                                     !config->FGRectWidth.has_value() && !config->FGRectHeight.has_value());
 
-                                if (ImGui::Button("Reset FG Rect"))
+                                if (ImGui::Button("重置 FG 矩形区域"))
                                 {
                                     config->FGRectLeft.reset();
                                     config->FGRectTop.reset();
@@ -4264,7 +4268,7 @@ bool MenuCommon::RenderMenu()
                                     config->FGRectHeight.reset();
                                 }
 
-                                ShowHelpMarker("Resets Frame generation rectangle");
+                                ShowHelpMarker("重置帧生成矩形区域");
 
                                 ImGui::EndDisabled();
                                 ImGui::TreePop();
@@ -4276,10 +4280,10 @@ bool MenuCommon::RenderMenu()
                             {
                                 ImGui::Spacing();
 
-                                if (ImGui::TreeNode("Frame Pacing Tuning"))
+                                if (ImGui::TreeNode("帧节奏调校"))
                                 {
                                     auto fptEnabled = config->FGFramePacingTuning.value_or_default();
-                                    if (ImGui::Checkbox("Enable Tuning", &fptEnabled))
+                                    if (ImGui::Checkbox("启用调校", &fptEnabled))
                                     {
                                         config->FGFramePacingTuning = fptEnabled;
                                         state.FSRFGFTPchanged = true;
@@ -4289,46 +4293,40 @@ bool MenuCommon::RenderMenu()
 
                                     ImGui::PushItemWidth(115.0f * menuResScale);
                                     auto fptSafetyMargin = config->FGFPTSafetyMarginInMs.value_or_default();
-                                    if (ImGui::InputFloat("Safety Margins in ms", &fptSafetyMargin, 0.01f, 0.1f,
+                                    if (ImGui::InputFloat("安全余量（毫秒）", &fptSafetyMargin, 0.01f, 0.1f,
                                                           "%.2f"))
                                         config->FGFPTSafetyMarginInMs = fptSafetyMargin;
-                                    ShowHelpMarker("Safety margins in millisecons\n"
-                                                   "FSR default value: 0.1ms\n"
-                                                   "Opti default value: 0.01ms");
+                                    ShowHelpMarker("安全余量，单位为毫秒\nFSR 默认值：0.1ms\nOpti 默认值：0.01ms");
 
                                     auto fptVarianceFactor = config->FGFPTVarianceFactor.value_or_default();
-                                    if (ImGui::SliderFloat("Variance Factor", &fptVarianceFactor, 0.0f, 1.0f, "%.2f"))
+                                    if (ImGui::SliderFloat("方差系数", &fptVarianceFactor, 0.0f, 1.0f, "%.2f"))
                                         config->FGFPTVarianceFactor = fptVarianceFactor;
-                                    ShowHelpMarker("Variance factor\n"
-                                                   "FSR default value: 0.1\n"
-                                                   "Opti default value: 0.3");
+                                    ShowHelpMarker("方差系数\nFSR 默认值：0.1\nOpti 默认值：0.3");
                                     ImGui::PopItemWidth();
 
                                     auto fpHybridSpin = config->FGFPTAllowHybridSpin.value_or_default();
-                                    if (ImGui::Checkbox("Enable Hybrid Spin", &fpHybridSpin))
+                                    if (ImGui::Checkbox("启用混合自旋", &fpHybridSpin))
                                         config->FGFPTAllowHybridSpin = fpHybridSpin;
-                                    ShowHelpMarker("Allows pacing spinlock to sleep, should reduce CPU usage\n"
-                                                   "Might cause slow ramp up of FPS");
+                                    ShowHelpMarker("允许帧节奏自旋锁休眠，可降低 CPU 占用；可能导致 FPS 缓慢提升。");
 
                                     ImGui::PushItemWidth(115.0f * menuResScale);
                                     auto fptHybridSpinTime = config->FGFPTHybridSpinTime.value_or_default();
-                                    if (ImGui::SliderInt("Hybrid Spin Time", &fptHybridSpinTime, 0, 100))
+                                    if (ImGui::SliderInt("混合自旋时间", &fptHybridSpinTime, 0, 100))
                                         config->FGFPTHybridSpinTime = fptHybridSpinTime;
-                                    ShowHelpMarker("How long to spin if FPTHybridSpin is true. Measured in timer "
-                                                   "resolution units.\n"
-                                                   "Not recommended to go below 2. Will result in frequent overshoots");
+                                    ShowHelpMarker("FPTHybridSpin 为 true 时的自旋时长，以计时器分辨率为单位。\n"
+                                                   "不建议低于 2，否则会频繁超时。");
                                     ImGui::PopItemWidth();
 
                                     auto fpWaitForSingleObjectOnFence =
                                         config->FGFPTAllowWaitForSingleObjectOnFence.value_or_default();
-                                    if (ImGui::Checkbox("Enable WaitForSingleObjectOnFence",
+                                    if (ImGui::Checkbox("启用 WaitForSingleObjectOnFence",
                                                         &fpWaitForSingleObjectOnFence))
                                     {
                                         config->FGFPTAllowWaitForSingleObjectOnFence = fpWaitForSingleObjectOnFence;
                                     }
-                                    ShowHelpMarker("Allows WaitForSingleObject instead of spinning for fence value");
+                                    ShowHelpMarker("允许使用 WaitForSingleObject 等待围栏值，而不是自旋");
 
-                                    if (ImGui::Button("Apply Timing Changes"))
+                                    if (ImGui::Button("应用计时更改"))
                                         state.FSRFGFTPchanged = true;
 
                                     ImGui::EndDisabled();
@@ -4348,7 +4346,7 @@ bool MenuCommon::RenderMenu()
                 {
                     if (XeFGProxy::InitXeFG() && currentFeature != nullptr && !currentFeature->IsFrozen())
                     {
-                        ImGui::SeparatorText("Frame Generation (XeFG)");
+                        ImGui::SeparatorText("帧生成（XeFG）");
 
                         bool ignoreChecks = config->FGXeFGIgnoreInitChecks.value_or_default();
 
@@ -4377,19 +4375,19 @@ bool MenuCommon::RenderMenu()
                         if (restartNeeded)
                         {
                             ImGui::TextColored(toneMapColor(ImVec4(1.f, 0.8f, 0.f, 1.f)),
-                                               "Restart the game to apply correct XeFG settings!");
+                                               "请重启游戏以应用正确的 XeFG 设置！");
                         }
                         else
                         {
                             if (!correctMVs)
                                 ImGui::TextColored(toneMapColor(ImVec4(1.f, 0.f, 0.f, 1.f)),
-                                                   "Requires disabling dilated motion vectors");
+                                                   "需要禁用扩张运动矢量");
 
                             if (!ignoreChecks && state.realExclusiveFullscreen)
                             {
                                 cantActivate = true;
                                 ImGui::TextColored(toneMapColor(ImVec4(1.f, 0.f, 0.f, 1.f)),
-                                                   "Borderless display mode required!");
+                                                   "需要无边框显示模式！");
                             }
 
                             if (!ignoreChecks && state.isHdrActive)
@@ -4399,25 +4397,24 @@ bool MenuCommon::RenderMenu()
                                 {
                                     cantActivate = true;
                                     ImGui::TextColored(toneMapColor(ImVec4(1.0f, 0.0f, 0.0f, 1.f)),
-                                                       "XeFG only supports HDR10");
+                                                       "XeFG 仅支持 HDR10");
                                 }
                             }
                         }
 
                         if (!correctMVs || cantActivate || ignoreChecks)
                         {
-                            if (ImGui::Checkbox("Ignore Init Checks", &ignoreChecks))
+                            if (ImGui::Checkbox("忽略初始化检查", &ignoreChecks))
                                 config->FGXeFGIgnoreInitChecks = ignoreChecks;
 
-                            ShowHelpMarker("Ignores all prechecks for XeFG\n"
-                                           "Don't use this option to skip MV size warning for UE games!\n"
-                                           "It might cause crashes and bad IQ!");
+                            ShowHelpMarker("忽略 XeFG 的所有预检查。\n不要用此选项跳过 UE 游戏的运动矢量尺寸警告！\n"
+                                           "这可能导致崩溃和画质下降！");
                         }
 
                         ImGui::BeginDisabled(!correctMVs || cantActivate);
 
                         bool fgActive = config->FGEnabled.value_or_default();
-                        if (ImGui::Checkbox("Active##3", &fgActive))
+                        if (ImGui::Checkbox("启用##3", &fgActive))
                         {
                             config->FGEnabled = fgActive;
                             LOG_DEBUG("Enabled set FGEnabled: {}", fgActive);
@@ -4426,7 +4423,7 @@ bool MenuCommon::RenderMenu()
                                 state.FGchanged = true;
                         }
 
-                        ShowHelpMarker("Enable Frame Generation");
+                        ShowHelpMarker("启用帧生成");
 
                         ImGui::SameLine(0.0f, 16.0f);
 
@@ -4457,23 +4454,21 @@ bool MenuCommon::RenderMenu()
 
                             ImGui::PopItemWidth();
 
-                            ShowHelpMarker("Set XeFG interpolation count");
+                            ShowHelpMarker("设置 XeFG 插帧数量");
                         }
 
                         ImGui::SameLine(0.0f, 16.0f);
                         ImGui::BeginDisabled(!fgOutput->IsUsingHudlessAny() ||
                                              XeFGProxy::SetUiCompositionState() == nullptr);
                         bool fgCompositeUI = config->FGXeFGUIComposition.value_or_default();
-                        if (ImGui::Checkbox("UI Composition", &fgCompositeUI))
+                        if (ImGui::Checkbox("UI 合成", &fgCompositeUI))
                             config->FGXeFGUIComposition = fgCompositeUI;
 
-                        ShowHelpMarker("Disable HUD/UI interpolation\n"
-                                       "Reverts back to previous XeFG 2 behaviour\n\n"
-                                       "Fixes artifacting transparent HUD/UI");
+                        ShowHelpMarker("禁用 HUD/UI 插值，恢复为 XeFG 2 的旧行为。\n\n可修复透明 HUD/UI 的伪影。");
                         ImGui::EndDisabled();
 
                         bool fgDV = config->FGXeFGDebugView.value_or_default();
-                        if (ImGui::Checkbox("Debug View##2", &fgDV))
+                        if (ImGui::Checkbox("调试视图##2", &fgDV))
                         {
                             config->FGXeFGDebugView = fgDV;
 
@@ -4483,20 +4478,17 @@ bool MenuCommon::RenderMenu()
                                 LOG_DEBUG("DebugView set FGChanged");
                             }
                         }
-                        ShowHelpMarker("Enable XeFG Debug view");
+                        ShowHelpMarker("启用 XeFG 调试视图");
 
                         ImGui::EndDisabled();
 
                         ImGui::SameLine(0.0f, 16.0f);
                         bool fgBorderless = config->FGXeFGForceBorderless.value_or_default();
-                        if (ImGui::Checkbox("Force Borderless", &fgBorderless))
+                        if (ImGui::Checkbox("强制无边框", &fgBorderless))
                             config->FGXeFGForceBorderless = fgBorderless;
 
-                        ShowHelpMarker("Forces Borderless display mode\n\n"
-                                       "For best results, set fullscreen \n"
-                                       "resolution to your display resolution\n"
-                                       "Might cause some instability issues.\n\n"
-                                       "NEEDS GAME RESTART TO BE ACTIVE!");
+                        ShowHelpMarker("强制使用无边框显示模式。\n\n为获得最佳效果，请将全屏分辨率设为显示器分辨率。\n"
+                                       "可能引发稳定性问题。\n\n需要重启游戏才能生效！");
 
                         // Disable this for now
                         // ImGui::SameLine(0.0f, 16.0f);
@@ -4504,38 +4496,38 @@ bool MenuCommon::RenderMenu()
                         // ShowHelpMarker("Display only XeFG generated frames");
 
                         ImGui::Spacing();
-                        if (auto ch = ScopedCollapsingHeader("Extended XeFG Settings"); ch.IsHeaderOpen())
+                        if (auto ch = ScopedCollapsingHeader("扩展 XeFG 设置"); ch.IsHeaderOpen())
                         {
                             ImGui::Spacing();
-                            if (ImGui::TreeNode("Rectangle Settings"))
+                            if (ImGui::TreeNode("矩形区域设置"))
                             {
                                 ImGui::PushItemWidth(95.0f * menuResScale);
                                 int rectLeft = config->FGRectLeft.value_or(0);
-                                if (ImGui::InputInt("Rect Left##2", &rectLeft))
+                                if (ImGui::InputInt("矩形左边界##2", &rectLeft))
                                     config->FGRectLeft = rectLeft;
 
                                 ImGui::SameLine(0.0f, 16.0f);
                                 int rectTop = config->FGRectTop.value_or(0);
-                                if (ImGui::InputInt("Rect Top##2", &rectTop))
+                                if (ImGui::InputInt("矩形上边界##2", &rectTop))
                                     config->FGRectTop = rectTop;
 
                                 int rectWidth = config->FGRectWidth.value_or(0);
-                                if (ImGui::InputInt("Rect Width##2", &rectWidth))
+                                if (ImGui::InputInt("矩形宽度##2", &rectWidth))
                                     config->FGRectWidth = rectWidth;
 
                                 ImGui::SameLine(0.0f, 16.0f);
                                 int rectHeight = config->FGRectHeight.value_or(0);
-                                if (ImGui::InputInt("Rect Height##2", &rectHeight))
+                                if (ImGui::InputInt("矩形高度##2", &rectHeight))
                                     config->FGRectHeight = rectHeight;
 
                                 ImGui::PopItemWidth();
-                                ShowHelpMarker("Frame generation rectangle, adjust for letterboxed content##2");
+                                ShowHelpMarker("帧生成矩形区域，可针对黑边画面调整##2");
 
                                 ImGui::BeginDisabled(
                                     !config->FGRectLeft.has_value() && !config->FGRectTop.has_value() &&
                                     !config->FGRectWidth.has_value() && !config->FGRectHeight.has_value());
 
-                                if (ImGui::Button("Reset FG Rect##2"))
+                                if (ImGui::Button("重置 FG 矩形区域##2"))
                                 {
                                     config->FGRectLeft.reset();
                                     config->FGRectTop.reset();
@@ -4543,7 +4535,7 @@ bool MenuCommon::RenderMenu()
                                     config->FGRectHeight.reset();
                                 }
 
-                                ShowHelpMarker("Resets Frame generation rectangle##2");
+                                ShowHelpMarker("重置帧生成矩形区域##2");
 
                                 ImGui::EndDisabled();
                                 ImGui::TreePop();
@@ -4559,7 +4551,7 @@ bool MenuCommon::RenderMenu()
                 if (state.api == DX12 && state.currentFGSwapchain != nullptr &&
                     state.workingMode != WorkingMode::Nvngx && state.activeFgInput == FGInput::Upscaler)
                 {
-                    SeparatorWithHelpMarker("Frame Generation (OptiFG)", "Using upscaler data for FG");
+                    SeparatorWithHelpMarker("帧生成（OptiFG）", "使用升频器数据进行帧生成");
 
                     if (currentFeature != nullptr && !currentFeature->IsFrozen() &&
                         ((state.activeFgOutput == FGOutput::FSRFG && FfxApiProxy::IsFGReady()) ||
@@ -4577,14 +4569,14 @@ bool MenuCommon::RenderMenu()
                                 state.FGchanged = true;
                             }
 
-                            ShowHelpMarker("Enable HUD stability fix, might cause crashes!");
+                            ShowHelpMarker("启用 HUD 稳定性修复；可能导致崩溃！");
 
                             ImGui::BeginDisabled(!config->FGHUDFix.value_or_default());
 
                             ImGui::SameLine(0.0f, 16.0f);
                             ImGui::PushItemWidth(95.0f * menuResScale);
                             int hudFixLimit = config->FGHUDLimit.value_or_default();
-                            if (ImGui::InputInt("Limit", &hudFixLimit))
+                            if (ImGui::InputInt("限制", &hudFixLimit))
                             {
                                 if (hudFixLimit < 1)
                                     hudFixLimit = 1;
@@ -4594,59 +4586,58 @@ bool MenuCommon::RenderMenu()
                                 config->FGHUDLimit = hudFixLimit;
                                 LOG_DEBUG("Enabled set FGHUDLimit: {}", hudFixLimit);
                             }
-                            ShowHelpMarker("Delay HUDless capture, high values might cause crash!");
+                            ShowHelpMarker("延迟捕获无 HUD 资源；值过高可能导致崩溃！");
 
                             ImGui::SameLine(0.0f, 16.0f);
-                            if (ImGui::Button("Res##2"))
+                            if (ImGui::Button("资源##2"))
                                 _showHudlessWindow = !_showHudlessWindow;
 
                             ImGui::EndDisabled();
 
                             auto hudExtended = config->FGHUDFixExtended.value_or_default();
-                            if (ImGui::Checkbox("Extended", &hudExtended))
+                            if (ImGui::Checkbox("扩展检查", &hudExtended))
                             {
                                 LOG_DEBUG("Enabled set FGHUDFixExtended: {}", hudExtended);
                                 config->FGHUDFixExtended = hudExtended;
                             }
                             ShowHelpMarker(
-                                "Extended format checks for possible HUDless\nMight cause crashes and slowdowns!");
+                                "扩展可能的无 HUD 资源格式检查；可能导致崩溃和性能下降！");
                             ImGui::SameLine(0.0f, 16.0f);
 
                             ImGui::BeginDisabled(!config->FGHUDFix.value_or_default());
 
                             auto immediate = config->FGImmediateCapture.value_or_default();
-                            if (ImGui::Checkbox("Immediate Capture", &immediate))
+                            if (ImGui::Checkbox("立即捕获", &immediate))
                             {
                                 LOG_DEBUG("Enabled set FGImmediateCapture: {}", immediate);
                                 config->FGImmediateCapture = immediate;
                             }
-                            ShowHelpMarker("Enables capturing of resources before shader execution.\nIncrease HUDless "
-                                           "capture chances, but might cause capturing of unnecessary resources.");
+                            ShowHelpMarker("在着色器执行前捕获资源。可提高捕获无 HUD 资源的概率，但可能捕获不必要的资源。");
 
                             ImGui::PopItemWidth();
 
                             ImGui::EndDisabled();
                         }
                         bool depthScale = config->FGEnableDepthScale.value_or_default();
-                        if (ImGui::Checkbox("Scale Depth to fix DLSS RR", &depthScale))
+                        if (ImGui::Checkbox("缩放深度以修复 DLSS RR", &depthScale))
                             config->FGEnableDepthScale = depthScale;
-                        ShowHelpMarker("Fix for DLSS-D wrong depth inputs");
+                        ShowHelpMarker("修复 DLSS-D 深度输入错误");
 
                         bool resourceFlip = config->FGResourceFlip.value_or_default();
-                        if (ImGui::Checkbox("Flip (Unity)", &resourceFlip))
+                        if (ImGui::Checkbox("翻转（Unity）", &resourceFlip))
                             config->FGResourceFlip = resourceFlip;
-                        ShowHelpMarker("Flip Velocity & Depth resources of Unity games");
+                        ShowHelpMarker("翻转 Unity 游戏的速度和深度资源");
 
                         ImGui::SameLine(0.0f, 16.0f);
 
                         bool resourceFlipOffset = config->FGResourceFlipOffset.value_or_default();
-                        if (ImGui::Checkbox("Flip Use Offset", &resourceFlipOffset))
+                        if (ImGui::Checkbox("翻转时使用偏移", &resourceFlipOffset))
                             config->FGResourceFlipOffset = resourceFlipOffset;
-                        ShowHelpMarker("Use height difference as offset");
+                        ShowHelpMarker("使用高度差作为偏移");
 
                         ImGui::Spacing();
 
-                        if (auto ch = ScopedCollapsingHeader("Advanced OptiFG Settings"); ch.IsHeaderOpen())
+                        if (auto ch = ScopedCollapsingHeader("高级 OptiFG 设置"); ch.IsHeaderOpen())
                         {
                             ScopedIndent indent {};
 
@@ -4655,30 +4646,27 @@ bool MenuCommon::RenderMenu()
                                 ImGui::Spacing();
 
                                 auto rb = config->FGResourceBlocking.value_or_default();
-                                if (ImGui::Checkbox("Resource Blocking", &rb))
+                                if (ImGui::Checkbox("资源拦截", &rb))
                                 {
                                     config->FGResourceBlocking = rb;
                                     LOG_DEBUG("Enabled set FGResourceBlocking: {}", rb);
                                 }
-                                ShowHelpMarker("Block rarely used resources from using as HUDless \n"
-                                               "to prevent flickers and other issues\n\n"
-                                               "HUDfix enable/disable will reset the block list!");
+                                ShowHelpMarker("禁止将很少使用的资源用作无 HUD 资源，以防止闪烁等问题。\n\n"
+                                               "启用或禁用 HUDFix 会重置拦截列表！");
 
                                 ImGui::SameLine(0.0f, 16.0f);
 
                                 auto rrc = config->FGRelaxedResolutionCheck.value_or_default();
-                                if (ImGui::Checkbox("Relaxed Resource Check", &rrc))
+                                if (ImGui::Checkbox("宽松资源检查", &rrc))
                                 {
                                     config->FGRelaxedResolutionCheck = rrc;
                                     LOG_DEBUG("Enabled set FGRelaxedResolutionCheck: {}", rrc);
                                 }
-                                ShowHelpMarker("Relax resolution checks for HUDless by 32 pixels \n"
-                                               "Helps games which use black borders for some \n"
-                                               "resolutions and screen ratios (e.g. Witcher 3)");
+                                ShowHelpMarker("将无 HUD 资源的分辨率检查放宽 32 像素。\n可帮助某些分辨率或宽高比下使用黑边的游戏（如《巫师 3》）。");
 
                                 ImGui::BeginDisabled(state.FGresetCapturedResources);
                                 ImGui::PushItemWidth(95.0f * menuResScale);
-                                if (ImGui::Checkbox("FG Create List", &state.FGcaptureResources))
+                                if (ImGui::Checkbox("FG 创建列表", &state.FGcaptureResources))
                                 {
                                     if (!state.FGcaptureResources)
                                         config->FGHUDLimit = 1;
@@ -4687,7 +4675,7 @@ bool MenuCommon::RenderMenu()
                                 }
 
                                 ImGui::SameLine(0.0f, 16.0f);
-                                if (ImGui::Checkbox("FG Use List", &state.FGonlyUseCapturedResources))
+                                if (ImGui::Checkbox("FG 使用列表", &state.FGonlyUseCapturedResources))
                                 {
                                     if (state.FGcaptureResources)
                                     {
@@ -4703,7 +4691,7 @@ bool MenuCommon::RenderMenu()
 
                                 ImGui::SameLine(0.0f, 16.0f);
 
-                                if (ImGui::Button("Reset List"))
+                                if (ImGui::Button("重置列表"))
                                 {
                                     LOG_DEBUG("Resetting captured resource list");
 
@@ -4715,119 +4703,106 @@ bool MenuCommon::RenderMenu()
 
                                 ImGui::Spacing();
                                 ImGui::Spacing();
-                                if (ImGui::TreeNode("Tracking Settings"))
+                                if (ImGui::TreeNode("跟踪设置"))
                                 {
                                     auto ath = config->FGAlwaysTrackHeaps.value_or_default();
-                                    if (ImGui::Checkbox("Always Track Heaps", &ath))
+                                    if (ImGui::Checkbox("始终跟踪堆", &ath))
                                     {
                                         config->FGAlwaysTrackHeaps = ath;
                                         LOG_DEBUG("Enabled set FGAlwaysTrackHeaps: {}", ath);
                                     }
                                     ShowHelpMarker(
-                                        "Always track resources, might cause performance issues\n, but also might "
-                                        "fix HUDFix related crashes!");
+                                        "始终跟踪资源可能影响性能，但也可能修复 HUDFix 相关崩溃！");
 
                                     auto disableRTV = config->FGHudfixDisableRTV.value_or_default();
-                                    if (ImGui::Checkbox("Disable RTV Tracking", &disableRTV))
+                                    if (ImGui::Checkbox("禁用 RTV 跟踪", &disableRTV))
                                         config->FGHudfixDisableRTV = disableRTV;
-                                    ShowHelpMarker("Disable tracking of CreateRenderTargetView\n"
-                                                   "This might help filtering of wrong HUDless resources");
+                                    ShowHelpMarker("停止跟踪 CreateRenderTargetView；可能有助于过滤错误的无 HUD 资源");
 
                                     ImGui::SameLine(0.0f, 16.0f);
 
                                     auto disableSRV = config->FGHudfixDisableSRV.value_or_default();
-                                    if (ImGui::Checkbox("Disable SRV Tracking", &disableSRV))
+                                    if (ImGui::Checkbox("禁用 SRV 跟踪", &disableSRV))
                                         config->FGHudfixDisableSRV = disableSRV;
-                                    ShowHelpMarker("Disable tracking of CreateShaderResourceView\n"
-                                                   "This might help filtering of wrong HUDless resources");
+                                    ShowHelpMarker("停止跟踪 CreateShaderResourceView；可能有助于过滤错误的无 HUD 资源");
 
                                     auto disableUAV = config->FGHudfixDisableUAV.value_or_default();
-                                    if (ImGui::Checkbox("Disable UAV Tracking", &disableUAV))
+                                    if (ImGui::Checkbox("禁用 UAV 跟踪", &disableUAV))
                                         config->FGHudfixDisableUAV = disableUAV;
-                                    ShowHelpMarker("Disable tracking of CreateUnorderedAccessView\n"
-                                                   "This might help filtering of wrong HUDless resources");
+                                    ShowHelpMarker("停止跟踪 CreateUnorderedAccessView；可能有助于过滤错误的无 HUD 资源");
 
                                     ImGui::SameLine(0.0f, 16.0f);
 
                                     auto disableOM = config->FGHudfixDisableOM.value_or_default();
-                                    if (ImGui::Checkbox("Disable OM Tracking", &disableOM))
+                                    if (ImGui::Checkbox("禁用 OM 跟踪", &disableOM))
                                         config->FGHudfixDisableOM = disableOM;
-                                    ShowHelpMarker("Disable tracking of OMSetRenderTargets\n"
-                                                   "This might help filtering of wrong HUDless resources");
+                                    ShowHelpMarker("停止跟踪 OMSetRenderTargets；可能有助于过滤错误的无 HUD 资源");
 
                                     auto disableSCR = config->FGHudfixDisableSCR.value_or_default();
-                                    if (ImGui::Checkbox("Disable SCR Tracking", &disableSCR))
+                                    if (ImGui::Checkbox("禁用 SCR 跟踪", &disableSCR))
                                         config->FGHudfixDisableSCR = disableSCR;
-                                    ShowHelpMarker("Disable tracking of SetComputeRootDescriptorTable\n"
-                                                   "This might help filtering of wrong HUDless resources");
+                                    ShowHelpMarker("停止跟踪 SetComputeRootDescriptorTable；可能有助于过滤错误的无 HUD 资源");
 
                                     ImGui::SameLine(0.0f, 16.0f);
 
                                     auto disableSGR = config->FGHudfixDisableSGR.value_or_default();
-                                    if (ImGui::Checkbox("Disable SGR Tracking", &disableSGR))
+                                    if (ImGui::Checkbox("禁用 SGR 跟踪", &disableSGR))
                                         config->FGHudfixDisableSGR = disableSGR;
-                                    ShowHelpMarker("Disable tracking of SetGraphicsRootDescriptorTable\n"
-                                                   "This might help filtering of wrong HUDless resources");
+                                    ShowHelpMarker("停止跟踪 SetGraphicsRootDescriptorTable；可能有助于过滤错误的无 HUD 资源");
 
                                     ImGui::Spacing();
 
                                     auto disableDI = config->FGHudfixDisableDI.value_or_default();
-                                    if (ImGui::Checkbox("Disable DI Tracking", &disableDI))
+                                    if (ImGui::Checkbox("禁用 DI 跟踪", &disableDI))
                                         config->FGHudfixDisableDI = disableDI;
-                                    ShowHelpMarker("Disable tracking of DrawInstanced\n"
-                                                   "This might help filtering of wrong HUDless resources");
+                                    ShowHelpMarker("停止跟踪 DrawInstanced；可能有助于过滤错误的无 HUD 资源");
 
                                     ImGui::SameLine(0.0f, 16.0f);
 
                                     auto disableDII = config->FGHudfixDisableDII.value_or_default();
-                                    if (ImGui::Checkbox("Disable DII Tracking", &disableDII))
+                                    if (ImGui::Checkbox("禁用 DII 跟踪", &disableDII))
                                         config->FGHudfixDisableDII = disableDII;
-                                    ShowHelpMarker("Disable tracking of DrawIndexedInstanced\n"
-                                                   "This might help filtering of wrong HUDless resources");
+                                    ShowHelpMarker("停止跟踪 DrawIndexedInstanced；可能有助于过滤错误的无 HUD 资源");
 
                                     auto disableDispatch = config->FGHudfixDisableDispatch.value_or_default();
-                                    if (ImGui::Checkbox("Disable Dispatch Tracking", &disableDispatch))
+                                    if (ImGui::Checkbox("禁用 Dispatch 跟踪", &disableDispatch))
                                         config->FGHudfixDisableDispatch = disableDispatch;
-                                    ShowHelpMarker("Disable tracking of Dispatch\n"
-                                                   "This might help filtering of wrong HUDless resources");
+                                    ShowHelpMarker("停止跟踪 Dispatch；可能有助于过滤错误的无 HUD 资源");
 
                                     ImGui::TreePop();
                                 }
                             }
 
                             ImGui::Spacing();
-                            if (ImGui::TreeNode("Resource Settings"))
+                            if (ImGui::TreeNode("资源设置"))
                             {
                                 bool makeMVCopies = config->FGMakeMVCopy.value_or_default();
-                                if (ImGui::Checkbox("FG Make MV Copies", &makeMVCopies))
+                                if (ImGui::Checkbox("FG 复制运动矢量", &makeMVCopies))
                                     config->FGMakeMVCopy = makeMVCopies;
-                                ShowHelpMarker("Make a copy of motion vectors to use with OptiFG\n"
-                                               "For preventing corruptions that might happen");
+                                ShowHelpMarker("复制运动矢量供 OptiFG 使用，以防止可能出现的数据损坏");
 
                                 bool makeDepthCopies = config->FGMakeDepthCopy.value_or_default();
-                                if (ImGui::Checkbox("FG Make Depth Copies", &makeDepthCopies))
+                                if (ImGui::Checkbox("FG 复制深度", &makeDepthCopies))
                                     config->FGMakeDepthCopy = makeDepthCopies;
-                                ShowHelpMarker("Make a copy of depth to use with OptiFG\n"
-                                               "For preventing corruptions that might happen");
+                                ShowHelpMarker("复制深度供 OptiFG 使用，以防止可能出现的数据损坏");
 
                                 ImGui::PushItemWidth(115.0f * menuResScale);
                                 float depthScaleMax = config->FGDepthScaleMax.value_or_default();
-                                if (ImGui::InputFloat("FG Scale Depth Max", &depthScaleMax, 10.0f, 100.0f, "%.1f"))
+                                if (ImGui::InputFloat("FG 深度缩放上限", &depthScaleMax, 10.0f, 100.0f, "%.1f"))
                                     config->FGDepthScaleMax = depthScaleMax;
-                                ShowHelpMarker("Depth values will be divided to this value");
+                                ShowHelpMarker("深度值将除以此值");
                                 ImGui::PopItemWidth();
 
                                 ImGui::TreePop();
                             }
 
                             ImGui::Spacing();
-                            if (ImGui::TreeNode("Syncing Settings"))
+                            if (ImGui::TreeNode("同步设置"))
                             {
                                 bool useMutexForPresent = config->FGUseMutexForSwapchain.value_or_default();
-                                if (ImGui::Checkbox("FG Use Mutex for Present", &useMutexForPresent))
+                                if (ImGui::Checkbox("FG 呈现时使用互斥锁", &useMutexForPresent))
                                     config->FGUseMutexForSwapchain = useMutexForPresent;
-                                ShowHelpMarker("Use mutex to prevent desync of FG and crashes\n"
-                                               "Disabling might improve the perf but decrease stability");
+                                ShowHelpMarker("使用互斥锁防止 FG 不同步和崩溃。禁用可能提高性能，但会降低稳定性。");
 
                                 ImGui::TreePop();
                             }
@@ -4838,17 +4813,17 @@ bool MenuCommon::RenderMenu()
                     }
                     else if (currentFeature == nullptr || currentFeature->IsFrozen())
                     {
-                        ImGui::Text("Upscaler is not active"); // Probably never will be visible
+                        ImGui::Text("升频器未激活"); // Probably never will be visible
                     }
                     else if (state.activeFgOutput == FGOutput::FSRFG && !FfxApiProxy::IsFGReady())
                     {
                         ImGui::TextColored(toneMapColor({ 1.0f, 0.0f, 0.0f, 1.0f }),
-                                           "amd_fidelityfx_dx12.dll is missing!"); // Probably never will be visible
+                                           "缺少 amd_fidelityfx_dx12.dll！"); // Probably never will be visible
                     }
                     else if (state.activeFgOutput == FGOutput::XeFG && XeFGProxy::Module() == nullptr)
                     {
                         ImGui::TextColored(toneMapColor({ 1.0f, 0.0f, 0.0f, 1.0f }),
-                                           "libxess_fg.dll is missing!"); // Probably never will be visible
+                                           "缺少 libxess_fg.dll！"); // Probably never will be visible
                     }
                 }
 
@@ -4856,43 +4831,42 @@ bool MenuCommon::RenderMenu()
                 if (state.workingMode != WorkingMode::Nvngx && state.activeFgInput == FGInput::Nukems &&
                     state.activeFgOutput == FGOutput::Nukems)
                 {
-                    SeparatorWithHelpMarker("Frame Generation (FSR3-FG via Nukem's DLSSG)",
-                                            "Requires Nukem's dlssg_to_fsr3 dll\nSelect DLSS-FG in-game");
+                    SeparatorWithHelpMarker("帧生成（通过 Nukem 的 DLSSG 使用 FSR3-FG）",
+                                            "需要 Nukem 的 dlssg_to_fsr3 DLL\n请在游戏中选择 DLSS-FG");
 
                     if (!state.NukemsFilesAvailable)
                         ImGui::TextColored(toneMapColor(ImVec4(1.f, 0.f, 0.f, 1.f)),
-                                           "Please put dlssg_to_fsr3_amd_is_better.dll next to OptiScaler");
+                                           "请将 dlssg_to_fsr3_amd_is_better.dll 放在 OptiScaler 旁边");
 
                     if (!ReflexHooks::isReflexHooked())
                     {
-                        ImGui::TextColored(toneMapColor(ImVec4(1.f, 0.f, 0.f, 1.f)), "Reflex not hooked");
-                        ImGui::Text("If you are using an AMD/Intel GPU, then make sure you have Fakenvapi");
+                        ImGui::TextColored(toneMapColor(ImVec4(1.f, 0.f, 0.f, 1.f)), "Reflex 未挂钩");
+                        ImGui::Text("如果使用 AMD/Intel GPU，请确保已安装 Fakenvapi");
                     }
                     else if (!ReflexHooks::isDlssgDetected())
                     {
-                        ImGui::Text("Please select DLSS Frame Generation in the game options\n"
-                                    "You might need to select DLSS first");
+                        ImGui::Text("请在游戏选项中选择 DLSS 帧生成。\n可能需要先选择 DLSS。");
                     }
 
                     if (state.swapchainApi == DX12)
                     {
-                        ImGui::Text("Current DLSSG state:");
+                        ImGui::Text("当前 DLSSG 状态：");
                         ImGui::SameLine();
                         if (ReflexHooks::isDlssgDetected())
-                            ImGui::TextColored(toneMapColor(ImVec4(0.f, 1.f, 0.25f, 1.f)), "ON");
+                            ImGui::TextColored(toneMapColor(ImVec4(0.f, 1.f, 0.25f, 1.f)), "开");
                         else
-                            ImGui::TextColored(toneMapColor(ImVec4(1.f, 0.f, 0.f, 1.f)), "OFF");
+                            ImGui::TextColored(toneMapColor(ImVec4(1.f, 0.f, 0.f, 1.f)), "关");
 
                         if (bool makeDepthCopy = config->MakeDepthCopy.value_or_default();
-                            ImGui::Checkbox("Fix broken visuals", &makeDepthCopy))
+                            ImGui::Checkbox("修复画面异常", &makeDepthCopy))
                             config->MakeDepthCopy = makeDepthCopy;
-                        ShowHelpMarker("Makes a copy of the depth buffer\nCan fix broken visuals in some games on AMD "
-                                       "GPUs under Windows\nCan cause stutters, so best to use only when necessary");
+                        ShowHelpMarker("复制深度缓冲区，可修复 Windows 下部分游戏在 AMD GPU 上的画面异常。\n"
+                                       "可能导致卡顿，建议仅在必要时使用。");
                     }
                     else if (state.swapchainApi == Vulkan)
                     {
                         ImGui::TextColored(toneMapColor(ImVec4(1.f, 0.8f, 0.f, 1.f)),
-                                           "DLSSG is purposefully disabled when this menu is visible");
+                                           "显示此菜单时会有意禁用 DLSSG");
                         ImGui::Spacing();
                     }
 
@@ -4900,18 +4874,18 @@ bool MenuCommon::RenderMenu()
                     {
                         if (DLSSGMod::is120orNewer())
                         {
-                            if (ImGui::Checkbox("Enable Debug View", &state.DLSSGDebugView))
+                            if (ImGui::Checkbox("启用调试视图", &state.DLSSGDebugView))
                             {
                                 DLSSGMod::setDebugView(state.DLSSGDebugView);
                             }
-                            if (ImGui::Checkbox("Interpolated frames only", &state.DLSSGInterpolatedOnly))
+                            if (ImGui::Checkbox("仅显示插值帧", &state.DLSSGInterpolatedOnly))
                             {
                                 DLSSGMod::setInterpolatedOnly(state.DLSSGInterpolatedOnly);
                             }
                         }
                         else if (DLSSGMod::FSRDebugView() != nullptr)
                         {
-                            if (ImGui::Checkbox("Enable Debug View", &state.DLSSGDebugView))
+                            if (ImGui::Checkbox("启用调试视图", &state.DLSSGDebugView))
                             {
                                 DLSSGMod::FSRDebugView()(state.DLSSGDebugView);
                             }
@@ -4923,72 +4897,70 @@ bool MenuCommon::RenderMenu()
                 if (state.currentFGSwapchain != nullptr && state.workingMode != WorkingMode::Nvngx &&
                     (state.activeFgInput == FGInput::FSRFG || state.activeFgInput == FGInput::FSRFG30))
                 {
-                    SeparatorWithHelpMarker("Frame Generation (FSR-FG Inputs)", "Select FSR-FG in-game");
+                    SeparatorWithHelpMarker("帧生成（FSR-FG 输入）", "请在游戏内选择 FSR-FG");
 
                     auto fgOutput = reinterpret_cast<IFGFeature_Dx12*>(state.currentFG);
                     if (fgOutput != nullptr)
                     {
-                        ImGui::Text("Current FSR-FG state:");
+                        ImGui::Text("当前 FSR-FG 状态：");
                         ImGui::SameLine();
                         if (state.FSRFGInputActive)
                         {
                             if (fgOutput->IsActive())
-                                ImGui::TextColored(toneMapColor(ImVec4(0.f, 1.f, 0.25f, 1.f)), "ON");
+                                ImGui::TextColored(toneMapColor(ImVec4(0.f, 1.f, 0.25f, 1.f)), "开");
                             else
-                                ImGui::TextColored(toneMapColor(ImVec4(1.0f, 0.647f, 0.0f, 1.f)), "ACTIVATE FG");
+                                ImGui::TextColored(toneMapColor(ImVec4(1.0f, 0.647f, 0.0f, 1.f)), "请激活 FG");
                         }
                         else
                         {
-                            ImGui::TextColored(toneMapColor(ImVec4(1.f, 0.f, 0.f, 1.f)), "OFF");
-                            ImGui::Text("Please select FSR Frame Generation in the game options\n"
-                                        "You might need to select FSR first");
+                            ImGui::TextColored(toneMapColor(ImVec4(1.f, 0.f, 0.f, 1.f)), "关");
+                            ImGui::Text("请在游戏选项中选择 FSR 帧生成。\n可能需要先选择 FSR。");
                         }
                     }
 
                     bool skipConfig = config->FSRFGSkipConfigForHudless.value_or_default();
-                    if (ImGui::Checkbox("Skip Config for HUDless", &skipConfig))
+                    if (ImGui::Checkbox("无 HUD 资源跳过 Config", &skipConfig))
                         config->FSRFGSkipConfigForHudless = skipConfig;
 
-                    ShowHelpMarker("Do not use HUDless set at ffxConfig");
+                    ShowHelpMarker("不使用 ffxConfig 设置的无 HUD 资源");
 
                     ImGui::SameLine(0.0f, 6.0f);
 
                     bool skipDispatch = config->FSRFGSkipDispatchForHudless.value_or_default();
-                    if (ImGui::Checkbox("Skip Dispatch for HUDless", &skipDispatch))
+                    if (ImGui::Checkbox("无 HUD 资源跳过 Dispatch", &skipDispatch))
                         config->FSRFGSkipDispatchForHudless = skipDispatch;
 
-                    ShowHelpMarker("Do not use HUDless set at ffxDispatch");
+                    ShowHelpMarker("不使用 ffxDispatch 设置的无 HUD 资源");
                 }
 
                 // Streamline FG Inputs
                 if (state.currentFGSwapchain != nullptr && state.workingMode != WorkingMode::Nvngx &&
                     state.activeFgInput == FGInput::DLSSG)
                 {
-                    SeparatorWithHelpMarker("Frame Generation (Streamline FG Inputs)", "Select DLSS-FG in-game");
+                    SeparatorWithHelpMarker("帧生成（Streamline FG 输入）", "请在游戏内选择 DLSS-FG");
 
                     auto fgOutput = reinterpret_cast<IFGFeature_Dx12*>(state.currentFG);
 
                     if (!ReflexHooks::isReflexHooked())
                     {
-                        ImGui::TextColored(toneMapColor(ImVec4(1.f, 0.f, 0.f, 1.f)), "Reflex not hooked");
-                        ImGui::Text("If you are using an AMD/Intel GPU, then make sure you have fakenvapi");
+                        ImGui::TextColored(toneMapColor(ImVec4(1.f, 0.f, 0.f, 1.f)), "Reflex 未挂钩");
+                        ImGui::Text("如果使用 AMD/Intel GPU，请确保已安装 Fakenvapi");
                     }
                     else if (fgOutput != nullptr)
                     {
-                        ImGui::Text("Current Streamline FG state:");
+                        ImGui::Text("当前 Streamline FG 状态：");
                         ImGui::SameLine();
                         if ((state.FGLastFrame - state.DLSSGLastFrame) < 3)
                         {
                             if (fgOutput->IsActive())
-                                ImGui::TextColored(toneMapColor(ImVec4(0.f, 1.f, 0.25f, 1.f)), "ON");
+                                ImGui::TextColored(toneMapColor(ImVec4(0.f, 1.f, 0.25f, 1.f)), "开");
                             else
-                                ImGui::TextColored(toneMapColor(ImVec4(1.0f, 0.647f, 0.0f, 1.f)), "ACTIVATE FG");
+                                ImGui::TextColored(toneMapColor(ImVec4(1.0f, 0.647f, 0.0f, 1.f)), "请激活 FG");
                         }
                         else
                         {
-                            ImGui::TextColored(toneMapColor(ImVec4(1.f, 0.f, 0.f, 1.f)), "OFF");
-                            ImGui::Text("Please select DLSS Frame Generation in the game options\n"
-                                        "You might need to select DLSS first");
+                            ImGui::TextColored(toneMapColor(ImVec4(1.f, 0.f, 0.f, 1.f)), "关");
+                            ImGui::Text("请在游戏选项中选择 DLSS 帧生成。\n可能需要先选择 DLSS。");
                         }
                     }
                 }
@@ -4999,14 +4971,14 @@ bool MenuCommon::RenderMenu()
                     if (currentFeature != nullptr && !currentFeature->IsFrozen() &&
                         (state.activeFgOutput == FGOutput::FSRFG || currentBackend.rfind("fsr", 0) == 0))
                     {
-                        SeparatorWithHelpMarker("FSR Common Settings", "Affects both FSR-FG & Upscalers");
+                        SeparatorWithHelpMarker("FSR 通用设置", "同时影响 FSR-FG 和升频器");
 
                         bool useFsrVales = config->FsrUseFsrInputValues.value_or_default();
-                        if (ImGui::Checkbox("Use FSR Input Values", &useFsrVales))
+                        if (ImGui::Checkbox("使用 FSR 输入值", &useFsrVales))
                             config->FsrUseFsrInputValues = useFsrVales;
 
                         ImGui::Spacing();
-                        if (auto ch = ScopedCollapsingHeader("FoV & Camera Values"); ch.IsHeaderOpen())
+                        if (auto ch = ScopedCollapsingHeader("视野与相机参数"); ch.IsHeaderOpen())
                         {
                             ScopedIndent indent {};
                             ImGui::Spacing();
@@ -5021,7 +4993,7 @@ bool MenuCommon::RenderMenu()
                             else if (!useVFov && !config->FsrHorizontalFov.has_value())
                                 config->FsrHorizontalFov = hfov;
 
-                            if (ImGui::RadioButton("Use Vert. Fov", useVFov))
+                            if (ImGui::RadioButton("使用垂直视野", useVFov))
                             {
                                 config->FsrHorizontalFov.reset();
                                 config->FsrVerticalFov = vfov;
@@ -5030,7 +5002,7 @@ bool MenuCommon::RenderMenu()
 
                             ImGui::SameLine(0.0f, 6.0f);
 
-                            if (ImGui::RadioButton("Use Horz. Fov", !useVFov))
+                            if (ImGui::RadioButton("使用水平视野", !useVFov))
                             {
                                 config->FsrVerticalFov.reset();
                                 config->FsrHorizontalFov = hfov;
@@ -5039,17 +5011,17 @@ bool MenuCommon::RenderMenu()
 
                             if (useVFov)
                             {
-                                if (ImGui::SliderFloat("Vert. FOV", &vfov, 0.0f, 180.0f, "%.1f"))
+                                if (ImGui::SliderFloat("垂直视野", &vfov, 0.0f, 180.0f, "%.1f"))
                                     config->FsrVerticalFov = vfov;
 
-                                ShowHelpMarker("Might help achieve better image quality");
+                                ShowHelpMarker("可能有助于获得更好的画质");
                             }
                             else
                             {
-                                if (ImGui::SliderFloat("Horz. FOV", &hfov, 0.0f, 180.0f, "%.1f"))
+                                if (ImGui::SliderFloat("水平视野", &hfov, 0.0f, 180.0f, "%.1f"))
                                     config->FsrHorizontalFov = hfov;
 
-                                ShowHelpMarker("Might help achieve better image quality");
+                                ShowHelpMarker("可能有助于获得更好的画质");
                             }
 
                             float cameraNear;
@@ -5058,17 +5030,15 @@ bool MenuCommon::RenderMenu()
                             cameraNear = config->FsrCameraNear.value_or_default();
                             cameraFar = config->FsrCameraFar.value_or_default();
 
-                            if (ImGui::SliderFloat("Camera Near", &cameraNear, 0.1f, 500000.0f, "%.1f"))
+                            if (ImGui::SliderFloat("相机近裁剪面", &cameraNear, 0.1f, 500000.0f, "%.1f"))
                                 config->FsrCameraNear = cameraNear;
-                            ShowHelpMarker("Might help achieve better image quality\n"
-                                           "And potentially less ghosting");
+                            ShowHelpMarker("可能有助于改善画质并减少重影");
 
-                            if (ImGui::SliderFloat("Camera Far", &cameraFar, 0.1f, 500000.0f, "%.1f"))
+                            if (ImGui::SliderFloat("相机远裁剪面", &cameraFar, 0.1f, 500000.0f, "%.1f"))
                                 config->FsrCameraFar = cameraFar;
-                            ShowHelpMarker("Might help achieve better image quality\n"
-                                           "And potentially less ghosting");
+                            ShowHelpMarker("可能有助于改善画质并减少重影");
 
-                            if (ImGui::Button("Reset Camera Values"))
+                            if (ImGui::Button("重置相机参数"))
                             {
                                 config->FsrVerticalFov.reset();
                                 config->FsrHorizontalFov.reset();
@@ -5077,7 +5047,7 @@ bool MenuCommon::RenderMenu()
                             }
 
                             ImGui::SameLine(0.0f, 6.0f);
-                            ImGui::Text("Near: %.1f Far: %.1f",
+                            ImGui::Text("近: %.1f 远: %.1f",
                                         state.lastFsrCameraNear < 500000.0f ? state.lastFsrCameraNear : 500000.0f,
                                         state.lastFsrCameraFar < 500000.0f ? state.lastFsrCameraFar : 500000.0f);
 
@@ -5091,8 +5061,8 @@ bool MenuCommon::RenderMenu()
                 if (state.reflexLimitsFps || config->OverlayMenu)
                 {
                     SeparatorWithHelpMarker(
-                        "Framerate",
-                        "Uses Reflex when possible\nOn AMD/Intel cards, you can use Fakenvapi to substitute Reflex");
+                        "帧率",
+                        "尽可能使用 Reflex。\nAMD/Intel 显卡可用 Fakenvapi 替代 Reflex。");
 
                     static std::string currentMethod {};
                     if (state.reflexLimitsFps)
@@ -5114,7 +5084,7 @@ bool MenuCommon::RenderMenu()
                                 config->FGOutput == FGOutput::FSRFG)
                                 ImGui::TextColored(
                                     toneMapColor(ImVec4(1.f, 0.8f, 0.f, 1.f)),
-                                    "Using RTSS Reflex injection with AntiLag 2 and FSR FG might cause issues");
+                                    "同时使用 RTSS Reflex 注入、AntiLag 2 和 FSR FG 可能导致问题");
                         }
                         else
                         {
@@ -5123,18 +5093,18 @@ bool MenuCommon::RenderMenu()
                     }
                     else
                     {
-                        currentMethod = "Fallback";
+                        currentMethod = "回退方案";
                     }
 
                     if (state.rtssReflexInjection)
                         currentMethod.append(" (RTSS)");
 
-                    ImGui::Text("Current method: %s", currentMethod.c_str());
+                    ImGui::Text("当前方式：%s", currentMethod.c_str());
 
                     if (state.reflexShowWarning)
                     {
                         ImGui::TextColored(toneMapColor(ImVec4(1.f, 0.f, 0.f, 1.f)),
-                                           "Using Reflex's limit with OptiFG has performance overhead");
+                                           "将 Reflex 帧率限制与 OptiFG 搭配使用会产生性能开销");
 
                         ImGui::Spacing();
                     }
@@ -5143,29 +5113,29 @@ bool MenuCommon::RenderMenu()
                     if (std::isinf(_limitFps))
                         _limitFps = config->FramerateLimit.value_or_default();
 
-                    ImGui::SliderFloat("FPS Limit", &_limitFps, 0, 200, "%.0f");
+                    ImGui::SliderFloat("FPS 上限", &_limitFps, 0, 200, "%.0f");
 
-                    if (ImGui::Button("Apply Limit"))
+                    if (ImGui::Button("应用上限"))
                     {
                         config->FramerateLimit = _limitFps;
                     }
 
                     ImGui::SameLine(0.0f, 16.0f);
 
-                    if (ImGui::Button("Reset Limit"))
+                    if (ImGui::Button("重置上限"))
                     {
                         _limitFps = 0.0f;
                         config->FramerateLimit = _limitFps;
                     }
 
                     ImGui::Spacing();
-                    if (auto ch = ScopedCollapsingHeader("VRR Frame Cap Calculator"); ch.IsHeaderOpen())
+                    if (auto ch = ScopedCollapsingHeader("VRR 帧率上限计算器"); ch.IsHeaderOpen())
                     {
                         ScopedIndent indent {};
                         ImGui::Spacing();
 
                         ImGui::PushItemWidth(105.0f * menuResScale);
-                        ImGui::InputInt("Refresh Rate", &refreshRate, 1, 1, ImGuiInputTextFlags_None);
+                        ImGui::InputInt("刷新率", &refreshRate, 1, 1, ImGuiInputTextFlags_None);
                         ImGui::PopItemWidth();
 
                         float refreshRateF = static_cast<float>(refreshRate);
@@ -5177,11 +5147,11 @@ bool MenuCommon::RenderMenu()
                         if (fpsLimitTech == Mode::AntiLag2 || fpsLimitTech == Mode::AntiLagVk)
                             frameCap = std::round(frameCap);
 
-                        ImGui::Text("Calculated Cap: %.1f", frameCap);
+                        ImGui::Text("计算出的上限：%.1f", frameCap);
 
                         ImGui::SameLine(0.0f, 16.0f);
 
-                        if (ImGui::Button("Set as FPS Limit"))
+                        if (ImGui::Button("设为 FPS 上限"))
                         {
                             _limitFps = frameCap;
                             config->FramerateLimit = _limitFps;
@@ -5195,45 +5165,43 @@ bool MenuCommon::RenderMenu()
                     ImGui::SeparatorText("fakenvapi");
 
                     if (bool logs = config->FN_EnableLogs.value_or_default();
-                        ImGui::Checkbox("Enable Logging To File", &logs))
+                        ImGui::Checkbox("启用文件日志", &logs))
                         config->FN_EnableLogs = logs;
 
                     ImGui::BeginDisabled(!config->FN_EnableLogs.value_or_default());
 
                     ImGui::SameLine(0.0f, 6.0f);
                     if (bool traceLogs = config->FN_EnableTraceLogs.value_or_default();
-                        ImGui::Checkbox("Enable Trace Logs", &traceLogs))
+                        ImGui::Checkbox("启用跟踪日志", &traceLogs))
                         config->FN_EnableTraceLogs = traceLogs;
 
                     ImGui::EndDisabled();
 
                     if (bool forceLFX = config->FN_ForceLatencyFlex.value_or_default();
-                        ImGui::Checkbox("Force LatencyFlex", &forceLFX))
+                        ImGui::Checkbox("强制使用 LatencyFlex", &forceLFX))
                         config->FN_ForceLatencyFlex = forceLFX;
-                    ShowHelpMarker("By default, AntiLag 2/XeLL is used when available.\n"
-                                   "This setting lets you force LatencyFlex instead");
+                    ShowHelpMarker("默认在可用时使用 AntiLag 2/XeLL。\n此设置可改为强制使用 LatencyFlex。");
 
                     // clang-format off
                     static const std::vector<MenuOption<uint32_t>> lfx_modes = {
-                        { 0, "Conservative",
-                            "The safest, but might not reduce latency well" },
-                        { 1, "Aggressive",
-                            "Improves latency, but in some cases will lower FPS more than expected" },
+                        { 0, "保守",
+                            "最安全，但降低延迟的效果可能有限" },
+                        { 1, "激进",
+                            "可改善延迟，但在某些情况下会使 FPS 降幅超出预期" },
                         { 2, "Reflex ID",
-                            "Best when can be used, some games are not compatible (e.g. Cyberpunk)\n"
-                            "and will fallback to Aggressive" }
+                            "可用时效果最佳；部分游戏不兼容（如《赛博朋克》），将回退到激进模式" }
                     };
 
-                    PopulateCombo("LatencyFlex mode", config->FN_LatencyFlexMode, lfx_modes);
+                    PopulateCombo("LatencyFlex 模式", config->FN_LatencyFlexMode, lfx_modes);
 
-                    static const std::vector<MenuOption<uint32_t>> reflex_modes = { { 0, "Follow in-game" },
-                                                                                    { 1, "Force Disable" },
-                                                                                    { 2, "Force Enable" } };
+                    static const std::vector<MenuOption<uint32_t>> reflex_modes = { { 0, "跟随游戏" },
+                                                                                    { 1, "强制禁用" },
+                                                                                    { 2, "强制启用" } };
 
-                    PopulateCombo("Force Reflex", config->FN_ForceReflex, reflex_modes);
+                    PopulateCombo("强制 Reflex 状态", config->FN_ForceReflex, reflex_modes);
                     // clang-format on
 
-                    if (ImGui::Button("Apply##2"))
+                    if (ImGui::Button("应用##2"))
                     {
                         config->SaveFakenvapiIni();
                     }
@@ -5245,10 +5213,10 @@ bool MenuCommon::RenderMenu()
                 if (currentFeature != nullptr && !currentFeature->IsFrozen())
                 {
                     // SHARPNESS -----------------------------
-                    ImGui::SeparatorText("Sharpness");
+                    ImGui::SeparatorText("锐化");
 
                     if (bool overrideSharpness = config->OverrideSharpness.value_or_default();
-                        ImGui::Checkbox("Override", &overrideSharpness))
+                        ImGui::Checkbox("覆盖", &overrideSharpness))
                     {
                         config->OverrideSharpness = overrideSharpness;
 
@@ -5258,14 +5226,13 @@ bool MenuCommon::RenderMenu()
                             MARK_ALL_BACKENDS_CHANGED();
                         }
                     }
-                    ShowHelpMarker("Ignores the value sent by the game\n"
-                                   "and uses the value set below");
+                    ShowHelpMarker("忽略游戏传入的值，改用下方设置");
 
                     ImGui::BeginDisabled(!config->OverrideSharpness.value_or_default());
 
                     float sharpness = config->Sharpness.value_or_default();
 
-                    if (ImGui::SliderFloat("Sharpness", &sharpness, 0.0f, 1.0f))
+                    if (ImGui::SliderFloat("锐度", &sharpness, 0.0f, 1.0f))
                         config->Sharpness = sharpness;
 
                     ImGui::EndDisabled();
@@ -5282,15 +5249,11 @@ bool MenuCommon::RenderMenu()
                         ImGui::Spacing();
 
                         if (bool rcas = config->RcasEnabled.value_or(rcasEnabled);
-                            ImGui::Checkbox("Enable RCAS/DA", &rcas))
+                            ImGui::Checkbox("启用 RCAS/DA", &rcas))
                             config->RcasEnabled = rcas;
 
-                        ShowHelpMarker("Enable OptiScaler's sharpening filter\n"
-                                       "By default uses a sharpening value provided by the game\n"
-                                       "Select 'Override' under 'Sharpness' and adjust the slider\n"
-                                       "to change it\n\n"
-                                       "Some upscalers have their own sharpness filter, so this\n"
-                                       "option is not always needed");
+                        ShowHelpMarker("启用 OptiScaler 的锐化滤镜。默认使用游戏提供的锐度值；可勾选“覆盖”后调整。\n\n"
+                                       "部分升频器自带锐化滤镜，因此不一定需要此选项。");
 
                         ImGui::BeginDisabled(!config->RcasEnabled.value_or(rcasEnabled));
 
@@ -5304,50 +5267,41 @@ bool MenuCommon::RenderMenu()
                             Config::Instance()->UseDASDepthAwareSharpen = !useRcas;
                         }
 
-                        ShowHelpMarker("Use AMD's RCAS\n"
-                                       "Modified to add Contrast parameter\n"
-                                       "and MAS support");
+                        ShowHelpMarker("使用 AMD RCAS；已修改以增加对比度参数和 MAS 支持");
 
                         ImGui::SameLine(0.0f, 6.0f);
 
-                        if (ImGui::Checkbox("Depth Aware (RCAS)", &useDA) && useDA)
+                        if (ImGui::Checkbox("深度感知（RCAS）", &useDA) && useDA)
                         {
                             Config::Instance()->UseDepthAwareSharpen = useDA;
                             Config::Instance()->UseDASDepthAwareSharpen = !useDA;
                         }
 
-                        ShowHelpMarker("Use Depth Aware Sharpening (RCAS)\n"
-                                       "Smarter sharpening with less artifacts,\n"
-                                       "but also heavier\n\n"
-                                       "The farther away is the object, the more\n"
-                                       "sharpening is applied");
+                        ShowHelpMarker("使用深度感知锐化（RCAS）。\n"
+                                       "伪影更少，但负载更高；物体越远，应用的锐化越强。");
 
                         ImGui::SameLine(0.0f, 6.0f);
 
-                        if (ImGui::Checkbox("Depth Aware (DAS)", &useLCDA) && useLCDA)
+                        if (ImGui::Checkbox("深度感知（DAS）", &useLCDA) && useLCDA)
                         {
                             Config::Instance()->UseDASDepthAwareSharpen = useLCDA;
                             Config::Instance()->UseDepthAwareSharpen = !useLCDA;
                         }
 
-                        ShowHelpMarker("Use Depth Aware Sharpening (DAS)\n"
-                                       "Depth-aware directional adaptive luma sharpener\n"
-                                       "Smarter sharpening with less artifacts,\n"
-                                       "but also heavier\n\n"
-                                       "The farther away is the object, the more\n"
-                                       "sharpening is applied");
+                        ShowHelpMarker("使用深度感知锐化（DAS），即深度感知方向自适应亮度锐化器。\n"
+                                       "伪影更少，但负载更高；物体越远，应用的锐化越强。");
 
                         ImGui::Spacing();
 
                         if (bool overrideMotionSharpness = config->MotionSharpnessEnabled.value_or_default();
-                            ImGui::Checkbox("Enable Motion Adaptive Sharpness", &overrideMotionSharpness))
+                            ImGui::Checkbox("启用运动自适应锐化", &overrideMotionSharpness))
                             config->MotionSharpnessEnabled = overrideMotionSharpness;
-                        ShowHelpMarker("Enables sharpness adjustments according to the motion");
+                        ShowHelpMarker("根据运动程度调整锐度");
 
                         if (useDA || useLCDA)
                         {
                             bool depthLinear = config->DADepthIsLinear.value_or_default();
-                            if (ImGui::Checkbox("Linear Depth", &depthLinear))
+                            if (ImGui::Checkbox("线性深度", &depthLinear))
                             {
                                 if (depthLinear)
                                     config->DADepthIsLinear = true;
@@ -5355,26 +5309,24 @@ bool MenuCommon::RenderMenu()
                                     config->DADepthIsLinear.reset();
                             }
 
-                            ShowHelpMarker("Most games use non-linear depth, but\n"
-                                           "DLSS-D might need this option to be enabled.\n"
-                                           "Could be verified via Debug view");
+                            ShowHelpMarker("大多数游戏使用非线性深度，但 DLSS-D 可能需要启用此项。\n"
+                                           "可通过调试视图确认。");
 
                             ImGui::SameLine(0.0f, 6.0f);
 
                             if (bool overrideMSDebug = config->MotionSharpnessDebug.value_or_default();
-                                ImGui::Checkbox("DA Debug", &overrideMSDebug))
+                                ImGui::Checkbox("DA 调试", &overrideMSDebug))
                                 config->MotionSharpnessDebug = overrideMSDebug;
 
-                            ShowHelpMarker("Enable DAS debug view\n\n"
-                                           "Blue tint for detected edges");
+                            ShowHelpMarker("启用 DAS 调试视图。\n\n检测到的边缘显示为蓝色。");
 
-                            if (auto ch = ScopedCollapsingHeader("Advanced DA Parameters"); ch.IsHeaderOpen())
+                            if (auto ch = ScopedCollapsingHeader("高级 DA 参数"); ch.IsHeaderOpen())
                             {
                                 ScopedIndent indent {};
                                 ImGui::Spacing();
 
                                 if (bool clamp = config->DAClampOutput.value_or(false);
-                                    ImGui::Checkbox("Clamp Output", &clamp))
+                                    ImGui::Checkbox("钳制输出", &clamp))
                                 {
                                     if (clamp)
                                         config->DAClampOutput = true;
@@ -5383,61 +5335,47 @@ bool MenuCommon::RenderMenu()
                                 }
 
                                 ShowHelpMarker(
-                                    "Clamps the final image to the [0, 1] range.\n\n"
-                                    "Prevents overshoot artifacts such as bright halos or negative colors.\n"
-                                    "Recommended for LDR pipelines; optional for HDR depending on tone-mapping.\n\n"
-                                    "When not set OptiScaler controls it via upscalers HDR flag");
+                                    "将最终图像钳制在 [0, 1] 范围，防止亮边或负色等过冲伪影。\n"
+                                    "建议用于 LDR 管线；HDR 是否使用取决于色调映射。未设置时由升频器 HDR 标志控制。");
 
                                 if (depthLinear)
                                 {
                                     float depthBias = config->DADepthBias.value_or(0.0015f);
-                                    if (ImGui::SliderFloat("Depth Bias", &depthBias, 0.005f, 0.03f, "%.4f"))
+                                    if (ImGui::SliderFloat("深度偏差", &depthBias, 0.005f, 0.03f, "%.4f"))
                                         config->DADepthBias = depthBias;
 
                                     ShowHelpMarker(
-                                        "Ignores small depth differences before edge detection.\n\n"
-                                        "Higher values reduce flickering and noise from minor depth changes, but may "
-                                        "soften real geometry edges.\n"
-                                        "Lower values preserve fine detail but can cause unstable or noisy edge "
-                                        "detection.");
+                                        "边缘检测前忽略微小深度差。值越高越能减少闪烁和噪点，但可能软化真实几何边缘；"
+                                        "值越低越能保留细节，但边缘检测可能不稳定或有噪点。");
 
                                     float depthScale = config->DADepthScale.value_or(250.0f);
-                                    if (ImGui::SliderFloat("Depth Scale", &depthScale, 100.0f, 600.0f, "%.1f"))
+                                    if (ImGui::SliderFloat("深度缩放", &depthScale, 100.0f, 600.0f, "%.1f"))
                                         config->DADepthScale = depthScale;
 
                                     ShowHelpMarker(
-                                        "Controls how strongly sharpening is reduced across depth edges.\n\n"
-                                        "Higher values more aggressively prevent sharpening across object boundaries "
-                                        "(reduces halos).\n"
-                                        "Lower values allow more sharpening to pass across edges (sharper but "
-                                        "riskier).");
+                                        "控制跨深度边缘时削弱锐化的程度。值越高越能抑制跨物体边界的锐化（减少光晕）；"
+                                        "值越低越锐利，但风险更高。");
                                 }
                                 else
                                 {
                                     float depthBias = config->DADepthBias.value_or(0.001f);
-                                    if (ImGui::SliderFloat("Depth Bias", &depthBias, 0.0001f, 0.003f, "%.4f"))
+                                    if (ImGui::SliderFloat("深度偏差", &depthBias, 0.0001f, 0.003f, "%.4f"))
                                         config->DADepthBias = depthBias;
 
                                     ShowHelpMarker(
-                                        "Ignores small depth differences before edge detection.\n\n"
-                                        "Higher values reduce flickering and noise from minor depth changes, but may "
-                                        "soften real geometry edges.\n"
-                                        "Lower values preserve fine detail but can cause unstable or noisy edge "
-                                        "detection.");
+                                        "边缘检测前忽略微小深度差。值越高越能减少闪烁和噪点，但可能软化真实几何边缘；"
+                                        "值越低越能保留细节，但边缘检测可能不稳定或有噪点。");
 
                                     float depthScale = config->DADepthScale.value_or(35.0f);
-                                    if (ImGui::SliderFloat("Depth Scale", &depthScale, 25.0f, 400.0f, "%.1f"))
+                                    if (ImGui::SliderFloat("深度缩放", &depthScale, 25.0f, 400.0f, "%.1f"))
                                         config->DADepthScale = depthScale;
 
                                     ShowHelpMarker(
-                                        "Controls how strongly sharpening is reduced across depth edges.\n\n"
-                                        "Higher values more aggressively prevent sharpening across object boundaries "
-                                        "(reduces halos).\n"
-                                        "Lower values allow more sharpening to pass across edges (sharper but "
-                                        "riskier).");
+                                        "控制跨深度边缘时削弱锐化的程度。值越高越能抑制跨物体边界的锐化（减少光晕）；"
+                                        "值越低越锐利，但风险更高。");
                                 }
 
-                                if (ImGui::Button("Reset Depth Values"))
+                                if (ImGui::Button("重置深度参数"))
                                 {
                                     config->DADepthBias.reset();
                                     config->DADepthScale.reset();
@@ -5447,25 +5385,24 @@ bool MenuCommon::RenderMenu()
                         else
                         {
                             if (bool contrastEnabled = config->ContrastEnabled.value_or_default();
-                                ImGui::Checkbox("Contrast Enabled", &contrastEnabled))
+                                ImGui::Checkbox("启用对比度控制", &contrastEnabled))
                                 config->ContrastEnabled = contrastEnabled;
 
-                            ShowHelpMarker("Controls sharpness at high contrast areas.");
+                            ShowHelpMarker("控制高对比度区域的锐度");
 
                             ImGui::BeginDisabled(!config->ContrastEnabled.value_or_default());
 
                             float contrast = config->Contrast.value_or_default();
-                            if (ImGui::SliderFloat("Contrast", &contrast, -2.0f, 2.0f, "%.2f"))
+                            if (ImGui::SliderFloat("对比度", &contrast, -2.0f, 2.0f, "%.2f"))
                                 config->Contrast = contrast;
 
-                            ShowHelpMarker("Positive values decrease sharpness at high contrast areas.\n"
-                                           "Negative values increase sharpness at high contrast areas.");
+                            ShowHelpMarker("正值降低高对比度区域的锐度，负值提高锐度。");
 
                             ImGui::EndDisabled();
                         }
 
                         ImGui::Spacing();
-                        if (auto ch = ScopedCollapsingHeader("Motion Adaptive Sharpness##2"); ch.IsHeaderOpen())
+                        if (auto ch = ScopedCollapsingHeader("运动自适应锐化##2"); ch.IsHeaderOpen())
                         {
                             ScopedIndent indent {};
                             ImGui::Spacing();
@@ -5475,39 +5412,32 @@ bool MenuCommon::RenderMenu()
                             if (!useDA & !useLCDA)
                             {
                                 if (bool overrideMSDebug = config->MotionSharpnessDebug.value_or_default();
-                                    ImGui::Checkbox("MAS Debug", &overrideMSDebug))
+                                    ImGui::Checkbox("MAS 调试", &overrideMSDebug))
                                     config->MotionSharpnessDebug = overrideMSDebug;
-                                ShowHelpMarker("Areas that are more red will have more sharpness applied\n"
-                                               "Green areas will get reduced sharpness");
+                                ShowHelpMarker("越红的区域锐化越强，绿色区域锐化减弱");
                             }
 
                             float motionSharpness = config->MotionSharpness.value_or_default();
-                            ImGui::SliderFloat("MotionSharpness", &motionSharpness, -1.0f, 1.0f, "%.3f");
+                            ImGui::SliderFloat("运动锐度", &motionSharpness, -1.0f, 1.0f, "%.3f");
                             config->MotionSharpness = motionSharpness;
 
-                            ShowHelpMarker("Maximum amount of sharpness that motion can add or remove.\n\n"
-                                           "Negative values reduce sharpening in motion (recommended).\n"
-                                           "Positive values increase sharpening in motion.\n\n"
-                                           "The final adjustment scales with motion and is capped at this value.");
+                            ShowHelpMarker("运动可增加或减少的最大锐度。负值降低运动中的锐化（推荐），正值提高锐化。\n"
+                                           "最终调整量随运动程度变化，并以此值为上限。");
 
                             float motionThreshod = config->MotionThreshold.value_or_default();
-                            ImGui::SliderFloat("MotionThreshod", &motionThreshod, 0.0f, 100.0f, "%.2f");
+                            ImGui::SliderFloat("运动阈值", &motionThreshod, 0.0f, 100.0f, "%.2f");
                             config->MotionThreshold = motionThreshod;
 
                             ShowHelpMarker(
-                                "Minimum motion required before motion-based sharpening adjustment begins.\n\n"
-                                "Higher values ignore small movements (more stable).\n"
-                                "Lower values react to subtle motion (more sensitive).");
+                                "开始运动锐化调整所需的最小运动量。值越高越能忽略微小运动（更稳定）；值越低越敏感。");
 
                             float motionScale = config->MotionScaleLimit.value_or_default();
-                            ImGui::SliderFloat("MotionRange", &motionScale, 0.01f, 100.0f, "%.2f");
+                            ImGui::SliderFloat("运动范围", &motionScale, 0.01f, 100.0f, "%.2f");
                             config->MotionScaleLimit = motionScale;
 
                             ShowHelpMarker(
-                                "Defines the motion range over which the effect ramps from zero to full strength.\n\n"
-                                "Values above the threshold are mapped into this range.\n"
-                                "Larger values make the response smoother and more gradual.\n"
-                                "Smaller values make the effect react more quickly and aggressively.");
+                                "定义效果从零逐渐达到全强度的运动范围。阈值以上的值映射到此范围。\n"
+                                "值越大响应越平滑渐进，值越小响应越快速激进。");
 
                             ImGui::EndDisabled();
 
@@ -5523,22 +5453,21 @@ bool MenuCommon::RenderMenu()
                     auto minSliderLimit = config->ExtendedLimits.value_or_default() ? 0.1f : 1.0f;
                     auto maxSliderLimit = config->ExtendedLimits.value_or_default() ? 6.0f : 3.0f;
 
-                    ImGui::SeparatorText("Upscale Ratio Override");
+                    ImGui::SeparatorText("升频倍率覆盖");
 
                     if (bool upOverride = config->UpscaleRatioOverrideEnabled.value_or_default();
-                        ImGui::Checkbox("Override all", &upOverride))
+                        ImGui::Checkbox("全部覆盖", &upOverride))
                     {
                         config->UpscaleRatioOverrideEnabled = upOverride;
 
                         if (upOverride)
                             config->QualityRatioOverrideEnabled = false;
                     }
-                    ShowHelpMarker("Overrides every upscaler preset with the set value\n\n"
-                                   "1.5x on a 1080p screen means an internal res of 720p\n"
-                                   "1080 / 1.5 = 720");
+                    ShowHelpMarker("使用设置值覆盖所有升频器预设。\n\n"
+                                   "1080p 屏幕上使用 1.5x 表示内部渲染为 720p：1080 / 1.5 = 720");
 
                     if (bool qOverride = config->QualityRatioOverrideEnabled.value_or_default();
-                        ImGui::Checkbox("Override per quality preset", &qOverride))
+                        ImGui::Checkbox("按质量预设覆盖", &qOverride))
                     {
                         config->QualityRatioOverrideEnabled = qOverride;
 
@@ -5546,15 +5475,13 @@ bool MenuCommon::RenderMenu()
                             config->UpscaleRatioOverrideEnabled = false;
                     }
 
-                    ShowHelpMarker("Lets you override each preset's ratio individually\n"
-                                   "Note that not every game supports every quality preset\n\n"
-                                   "1.5x on a 1080p screen means internal resolution of 720p\n"
-                                   "1080 / 1.5 = 720");
+                    ShowHelpMarker("分别覆盖各质量预设的倍率。并非所有游戏都支持每种质量预设。\n\n"
+                                   "1080p 屏幕上使用 1.5x 表示内部渲染为 720p：1080 / 1.5 = 720");
 
                     if (config->UpscaleRatioOverrideEnabled.value_or_default())
                     {
                         float urOverride = config->UpscaleRatioOverrideValue.value_or_default();
-                        ImGui::SliderFloat("All Ratios", &urOverride, minSliderLimit, maxSliderLimit, "%.3f");
+                        ImGui::SliderFloat("全部倍率", &urOverride, minSliderLimit, maxSliderLimit, "%.3f");
                         config->UpscaleRatioOverrideValue = urOverride;
                     }
 
@@ -5565,23 +5492,23 @@ bool MenuCommon::RenderMenu()
                             config->QualityRatio_DLAA = qDlaa;
 
                         float qUq = config->QualityRatio_UltraQuality.value_or_default();
-                        if (ImGui::SliderFloat("Ultra Quality", &qUq, minSliderLimit, maxSliderLimit, "%.3f"))
+                        if (ImGui::SliderFloat("超级质量", &qUq, minSliderLimit, maxSliderLimit, "%.3f"))
                             config->QualityRatio_UltraQuality = qUq;
 
                         float qQ = config->QualityRatio_Quality.value_or_default();
-                        if (ImGui::SliderFloat("Quality", &qQ, minSliderLimit, maxSliderLimit, "%.3f"))
+                        if (ImGui::SliderFloat("质量", &qQ, minSliderLimit, maxSliderLimit, "%.3f"))
                             config->QualityRatio_Quality = qQ;
 
                         float qB = config->QualityRatio_Balanced.value_or_default();
-                        if (ImGui::SliderFloat("Balanced", &qB, minSliderLimit, maxSliderLimit, "%.3f"))
+                        if (ImGui::SliderFloat("平衡", &qB, minSliderLimit, maxSliderLimit, "%.3f"))
                             config->QualityRatio_Balanced = qB;
 
                         float qP = config->QualityRatio_Performance.value_or_default();
-                        if (ImGui::SliderFloat("Performance", &qP, minSliderLimit, maxSliderLimit, "%.3f"))
+                        if (ImGui::SliderFloat("性能", &qP, minSliderLimit, maxSliderLimit, "%.3f"))
                             config->QualityRatio_Performance = qP;
 
                         float qUp = config->QualityRatio_UltraPerformance.value_or_default();
-                        if (ImGui::SliderFloat("Ultra Performance", &qUp, minSliderLimit, maxSliderLimit, "%.3f"))
+                        if (ImGui::SliderFloat("超级性能", &qUp, minSliderLimit, maxSliderLimit, "%.3f"))
                             config->QualityRatio_UltraPerformance = qUp;
                     }
 
@@ -5594,7 +5521,7 @@ bool MenuCommon::RenderMenu()
                             ImGui::BeginDisabled(!currentFeature->LowResMV() &&
                                                  currentFeature->RenderWidth() != currentFeature->DisplayWidth());
 
-                            ImGui::SeparatorText("Output Scaling");
+                            ImGui::SeparatorText("输出缩放");
 
                             float defaultRatio = 1.5f;
 
@@ -5607,15 +5534,12 @@ bool MenuCommon::RenderMenu()
 
                             ImGui::BeginDisabled((currentBackend == "xess" || currentBackend == "dlss") &&
                                                  currentFeature->RenderWidth() > currentFeature->DisplayWidth());
-                            ImGui::Checkbox("Enable", &_ssEnabled);
+                            ImGui::Checkbox("启用", &_ssEnabled);
                             ImGui::EndDisabled();
 
-                            ShowHelpMarker("Upscales the image internally to a higher output resolution\n"
-                                           "then downscales it back to your display resolution\n\n"
-                                           "Values <1.0 make the upscaler cheaper\n"
-                                           "Values >1.0 make image sharper at the cost of performance\n\n"
-                                           "If greyed out, please check Git Wiki - Unreal Engine tweaks\n\n"
-                                           "Target res and total ratio at the bottom (max. total 3.0!)");
+                            ShowHelpMarker("先在内部将图像升至更高输出分辨率，再缩回显示分辨率。\n\n"
+                                           "值 <1.0 可降低升频开销；值 >1.0 可提高锐度，但会损失性能。\n\n"
+                                           "若选项变灰，请查阅 Wiki 的 Unreal Engine 调整。总倍率上限为 3.0。");
 
                             ImGui::SameLine(0.0f, 6.0f);
 
@@ -5626,27 +5550,27 @@ bool MenuCommon::RenderMenu()
                                 // clang-format off
                                 std::vector<MenuOption<Scaler>> ds_options = {
                                     { Scaler::FSR1, "FSR1",
-                                        "Default option.\nGood enough image quality and very fast." },
+                                        "默认选项。画质足够好且速度很快。" },
                                     { Scaler::Bicubic, "Bicubic",
-                                        "Fastest traditional option.\nProduces a very soft/blurry image, but might be okay for downscaling." },
+                                        "最快的传统算法。图像非常柔和/模糊，但用于下采样或许可接受。" },
                                     { Scaler::CatmullRom, "Catmull-Rom",
-                                        "Designed primarily for downscaling.\nRetains good contrast with minimal artefacts, but softer than Lanczos." },
+                                        "主要为下采样设计。对比度良好、伪影少，但比 Lanczos 柔和。" },
                                     { Scaler::Lanczos2, "Lanczos2",
-                                        "Lighter and faster than Lanczos3.\nLess prone to ringing artefacts, but slightly blurrier." },
+                                        "比 Lanczos3 更轻、更快，不易出现振铃伪影，但略模糊。" },
                                     { Scaler::Lanczos3, "Lanczos3",
-                                        "Heavier version of Lanczos2.\nOffers the sharpest image, but is the most prone to ringing.\nConsidered the best along with Kaiser3." },
+                                        "Lanczos2 的高负载版本。图像最锐利，但最容易出现振铃；与 Kaiser3 并列为最佳选择。" },
                                     { Scaler::Kaiser2, "Kaiser2",
-                                        "Similar to Lanczos2.\nSmoother and less prone to artefacts than Lanczos, but slightly blurrier." },
+                                        "与 Lanczos2 类似，更平滑且伪影更少，但略模糊。" },
                                     { Scaler::Kaiser3, "Kaiser3",
-                                        "Similar to Lanczos3.\nFar less prone to artefacting than Lanczos3, but much heavier on the GPU.\nConsidered the best along with Lanczos3." },
+                                        "与 Lanczos3 类似，伪影少得多，但 GPU 负载高得多；与 Lanczos3 并列为最佳选择。" },
                                     { Scaler::Magic, "MAGIC",
-                                        "Specialised to prevent artifacts.\nEliminates harsh halos for a natural look, but can appear extremely soft." }
+                                        "专门用于抑制伪影。可消除刺眼光晕，使画面更自然，但可能显得非常柔和。" }
                                 };
                                 // clang-format on
 
                                 const bool isUpsampleRatio = _ssRatio < 1.0f;
                                 const std::string disabledReason =
-                                    "Only FSR1 and Bicubic are supported when Ratio is below 1.0.";
+                                    "倍率低于 1.0 时仅支持 FSR1 和双三次。";
 
                                 for (auto& opt : ds_options)
                                 {
@@ -5657,7 +5581,7 @@ bool MenuCommon::RenderMenu()
                                 if (isUpsampleRatio && _ssDownsampler > Scaler::Bicubic)
                                     _ssDownsampler = Scaler::FSR1;
 
-                                PopulateCombo("Downscaler", _ssDownsampler, ds_options);
+                                PopulateCombo("下采样器", _ssDownsampler, ds_options);
 
                                 ImGui::PopItemWidth();
                             }
@@ -5668,7 +5592,7 @@ bool MenuCommon::RenderMenu()
                                                 _ssDownsampler != config->OutputScalingDownscaler.value_or_default();
 
                             ImGui::BeginDisabled(!applyEnabled);
-                            if (ImGui::Button("Apply Change"))
+                            if (ImGui::Button("应用更改##输出缩放"))
                             {
                                 config->OutputScalingEnabled = _ssEnabled;
                                 config->OutputScalingMultiplier = _ssRatio;
@@ -5689,13 +5613,13 @@ bool MenuCommon::RenderMenu()
 
                             ImGui::BeginDisabled(!_ssEnabled ||
                                                  currentFeature->RenderWidth() > currentFeature->DisplayWidth());
-                            ImGui::SliderFloat("Ratio", &_ssRatio, 0.5f, 3.0f, "%.2f");
+                            ImGui::SliderFloat("倍率", &_ssRatio, 0.5f, 3.0f, "%.2f");
                             ImGui::EndDisabled();
 
                             if (currentFeature != nullptr && !currentFeature->IsFrozen())
                             {
-                                ImGui::Text("Output Scaling is %s, Target Res: %dx%d (%.2f)\nJitter Count: %d",
-                                            config->OutputScalingEnabled.value_or_default() ? "ENABLED" : "DISABLED",
+                                ImGui::Text("输出缩放%s，目标分辨率：%dx%d（%.2f）\n抖动计数：%d",
+                                            config->OutputScalingEnabled.value_or_default() ? "已启用" : "已禁用",
                                             (uint32_t) (currentFeature->DisplayWidth() * _ssRatio),
                                             (uint32_t) (currentFeature->DisplayHeight() * _ssRatio),
                                             ((float) currentFeature->DisplayWidth() * _ssRatio) /
@@ -5708,7 +5632,7 @@ bool MenuCommon::RenderMenu()
                     }
 
                     // INIT -----------------------------
-                    ImGui::SeparatorText("Init Flags");
+                    ImGui::SeparatorText("初始化标志");
                     if (ImGui::BeginTable("init", 2, ImGuiTableFlags_SizingStretchProp))
                     {
                         ImGui::TableNextColumn();
@@ -5718,15 +5642,13 @@ bool MenuCommon::RenderMenu()
                         ImGui::BeginDisabled(autoExposureDisabled);
 
                         if (bool autoExposure = currentFeature->AutoExposure();
-                            ImGui::Checkbox("Auto Exposure", &autoExposure))
+                            ImGui::Checkbox("自动曝光", &autoExposure))
                         {
                             config->AutoExposure = autoExposure;
                             ReInitUpscaler();
                         }
                         ShowResetButton(&config->AutoExposure, "R");
-                        ShowHelpMarker("Some Unreal Engine games need this\n\n"
-                                       "Try using if colours flickering or\n"
-                                       "objects have ghosting trails");
+                        ShowHelpMarker("部分 Unreal Engine 游戏需要此项。若颜色闪烁或物体有重影拖尾，可尝试启用。");
 
                         ImGui::EndDisabled();
 
@@ -5740,7 +5662,7 @@ bool MenuCommon::RenderMenu()
 
                         bool disableReactiveMask = config->DisableReactiveMask.value_or(!canUseReactiveMask);
 
-                        if (ImGui::Checkbox("Disable Reactive Mask", &disableReactiveMask))
+                        if (ImGui::Checkbox("禁用反应式遮罩", &disableReactiveMask))
                         {
                             config->DisableReactiveMask = disableReactiveMask;
 
@@ -5754,16 +5676,14 @@ bool MenuCommon::RenderMenu()
                         ImGui::EndDisabled();
 
                         if (accessToReactiveMask)
-                            ShowHelpMarker("Allows the use of a Reactive mask\n"
-                                           "Keep in mind that a Reactive mask sent to DLSS\n"
-                                           "will not produce a good image in combination with FSR/XeSS");
+                            ShowHelpMarker("允许使用反应式遮罩。请注意，将发送给 DLSS 的反应式遮罩与 FSR/XeSS 搭配不会产生良好画面。");
                         else
-                            ShowHelpMarker("Option disabled because the game doesn't provide a Reactive mask");
+                            ShowHelpMarker("游戏未提供反应式遮罩，因此此选项不可用");
 
                         ImGui::EndTable();
 
                         ImGui::Spacing();
-                        if (auto ch = ScopedCollapsingHeader("Advanced Init Flags"); ch.IsHeaderOpen())
+                        if (auto ch = ScopedCollapsingHeader("高级初始化标志"); ch.IsHeaderOpen())
                         {
                             ScopedIndent indent {};
                             ImGui::Spacing();
@@ -5772,13 +5692,13 @@ bool MenuCommon::RenderMenu()
                             {
                                 ImGui::TableNextColumn();
                                 if (bool depth = currentFeature->DepthInverted();
-                                    ImGui::Checkbox("Depth Inverted", &depth))
+                                    ImGui::Checkbox("反转深度", &depth))
                                 {
                                     config->DepthInverted = depth;
                                     ReInitUpscaler();
                                 }
                                 ShowResetButton(&config->DepthInverted, "R##2");
-                                ShowHelpMarker("You shouldn't need to change it");
+                                ShowHelpMarker("通常不需要更改此项");
 
                                 ImGui::TableNextColumn();
                                 if (bool hdr = currentFeature->IsHdr(); ImGui::Checkbox("HDR", &hdr))
@@ -5787,10 +5707,10 @@ bool MenuCommon::RenderMenu()
                                     ReInitUpscaler();
                                 }
                                 ShowResetButton(&config->HDR, "R##1");
-                                ShowHelpMarker("Might help with purple hue in some games");
+                                ShowHelpMarker("可能改善部分游戏的紫色色偏");
 
                                 ImGui::TableNextColumn();
-                                if (bool mv = !currentFeature->LowResMV(); ImGui::Checkbox("Display Res. MV", &mv))
+                                if (bool mv = !currentFeature->LowResMV(); ImGui::Checkbox("显示分辨率运动矢量", &mv))
                                 {
                                     config->DisplayResolution = mv;
 
@@ -5805,19 +5725,18 @@ bool MenuCommon::RenderMenu()
                                     ReInitUpscaler();
                                 }
                                 ShowResetButton(&config->DisplayResolution, "R##4");
-                                ShowHelpMarker("Mostly a fix for Unreal Engine games\n"
-                                               "Top left part of the screen will be blurry");
+                                ShowHelpMarker("主要用于修复 Unreal Engine 游戏画面左上区域模糊的问题");
 
                                 ImGui::TableNextColumn();
 
                                 if (bool jitter = currentFeature->JitteredMV();
-                                    ImGui::Checkbox("Jitter Cancellation", &jitter))
+                                    ImGui::Checkbox("抖动抵消", &jitter))
                                 {
                                     config->JitterCancellation = jitter;
                                     ReInitUpscaler();
                                 }
                                 ShowResetButton(&config->JitterCancellation, "R##3");
-                                ShowHelpMarker("Fix for games that send motion data with preapplied jitter");
+                                ShowHelpMarker("修复运动数据中已预先应用抖动的游戏");
 
                                 ImGui::TableNextColumn();
                                 ImGui::EndTable();
@@ -5833,15 +5752,15 @@ bool MenuCommon::RenderMenu()
 
                                 if (!binaryMask)
                                 {
-                                    if (ImGui::SliderFloat("React. Mask Bias", &maskBias, 0.0f, 0.9f, "%.2f"))
+                                    if (ImGui::SliderFloat("反应式遮罩偏差", &maskBias, 0.0f, 0.9f, "%.2f"))
                                         config->DlssReactiveMaskBias = maskBias;
 
-                                    ShowHelpMarker("Values above 0 activate usage of Reactive mask");
+                                    ShowHelpMarker("值大于 0 时启用反应式遮罩");
                                 }
                                 else
                                 {
                                     bool useRM = maskBias > 0.0f;
-                                    if (ImGui::Checkbox("Use Binary Reactive Mask", &useRM))
+                                    if (ImGui::Checkbox("使用二值反应式遮罩", &useRM))
                                     {
                                         if (useRM)
                                             config->DlssReactiveMaskBias = 0.45f;
@@ -5860,7 +5779,7 @@ bool MenuCommon::RenderMenu()
                 if (state.detectedQuirks.size() > 0)
                 {
                     ImGui::Spacing();
-                    if (auto ch = ScopedCollapsingHeader("Active Quirks"); ch.IsHeaderOpen())
+                    if (auto ch = ScopedCollapsingHeader("已启用的特殊处理"); ch.IsHeaderOpen())
                     {
                         ScopedIndent indent {};
                         ImGui::Spacing();
@@ -5874,7 +5793,7 @@ bool MenuCommon::RenderMenu()
 
                 // ADVANCED SETTINGS -----------------------------
                 ImGui::Spacing();
-                if (auto ch = ScopedCollapsingHeader("Advanced Settings"); ch.IsHeaderOpen())
+                if (auto ch = ScopedCollapsingHeader("高级设置"); ch.IsHeaderOpen())
                 {
                     ScopedIndent indent {};
                     ImGui::Spacing();
@@ -5882,16 +5801,14 @@ bool MenuCommon::RenderMenu()
                     if (currentFeature != nullptr && !currentFeature->IsFrozen())
                     {
                         bool extendedLimits = config->ExtendedLimits.value_or_default();
-                        if (ImGui::Checkbox("Enable Extended Limits", &extendedLimits))
+                        if (ImGui::Checkbox("启用扩展范围", &extendedLimits))
                             config->ExtendedLimits = extendedLimits;
 
-                        ShowHelpMarker("Extended sliders limit for quality presets\n\n"
-                                       "Using this option changes resolution detection logic\n"
-                                       "and might cause issues and crashes!");
+                        ShowHelpMarker("扩展质量预设滑块范围。此选项会改变分辨率检测逻辑，可能导致问题或崩溃！");
                     }
 
                     bool pcShaders = config->UsePrecompiledShaders.value_or_default();
-                    if (ImGui::Checkbox("Use Precompiled Shaders", &pcShaders))
+                    if (ImGui::Checkbox("使用预编译着色器", &pcShaders))
                     {
                         config->UsePrecompiledShaders = pcShaders;
                         state.newBackend = currentBackend;
@@ -5899,20 +5816,20 @@ bool MenuCommon::RenderMenu()
                     }
 
                     // DRS
-                    ImGui::SeparatorText("DRS (Dynamic Resolution Scaling)");
+                    ImGui::SeparatorText("DRS（动态分辨率缩放）");
                     if (ImGui::BeginTable("drs", 2, ImGuiTableFlags_SizingStretchProp))
                     {
                         ImGui::TableNextColumn();
                         if (bool drsMin = config->DrsMinOverrideEnabled.value_or_default();
-                            ImGui::Checkbox("Override Minimum", &drsMin))
+                            ImGui::Checkbox("覆盖最小值", &drsMin))
                             config->DrsMinOverrideEnabled = drsMin;
-                        ShowHelpMarker("Fix for games ignoring official DRS limits");
+                        ShowHelpMarker("修复忽略官方 DRS 限制的游戏");
 
                         ImGui::TableNextColumn();
                         if (bool drsMax = config->DrsMaxOverrideEnabled.value_or_default();
-                            ImGui::Checkbox("Override Maximum", &drsMax))
+                            ImGui::Checkbox("覆盖最大值", &drsMax))
                             config->DrsMaxOverrideEnabled = drsMax;
-                        ShowHelpMarker("Fix for games ignoring official DRS limits");
+                        ShowHelpMarker("修复忽略官方 DRS 限制的游戏");
 
                         ImGui::EndTable();
                     }
@@ -5922,34 +5839,34 @@ bool MenuCommon::RenderMenu()
                     {
                         // BARRIERS -----------------------------
                         ImGui::Spacing();
-                        if (auto ch = ScopedCollapsingHeader("Resource Barriers"); ch.IsHeaderOpen())
+                        if (auto ch = ScopedCollapsingHeader("资源屏障"); ch.IsHeaderOpen())
                         {
                             ScopedIndent indent {};
                             ImGui::Spacing();
 
-                            AddResourceBarrier("Color", &config->ColorResourceBarrier);
-                            AddResourceBarrier("Depth", &config->DepthResourceBarrier);
-                            AddResourceBarrier("Motion", &config->MVResourceBarrier);
-                            AddResourceBarrier("Exposure", &config->ExposureResourceBarrier);
-                            AddResourceBarrier("Mask", &config->MaskResourceBarrier);
-                            AddResourceBarrier("Output", &config->OutputResourceBarrier);
+                            AddResourceBarrier("颜色", &config->ColorResourceBarrier);
+                            AddResourceBarrier("深度", &config->DepthResourceBarrier);
+                            AddResourceBarrier("运动", &config->MVResourceBarrier);
+                            AddResourceBarrier("曝光", &config->ExposureResourceBarrier);
+                            AddResourceBarrier("遮罩", &config->MaskResourceBarrier);
+                            AddResourceBarrier("输出", &config->OutputResourceBarrier);
                         }
 
                         // HOTFIXES -----------------------------
                         if (state.api == DX12)
                         {
                             ImGui::Spacing();
-                            if (auto ch = ScopedCollapsingHeader("Root Signatures"); ch.IsHeaderOpen())
+                            if (auto ch = ScopedCollapsingHeader("根签名"); ch.IsHeaderOpen())
                             {
                                 ScopedIndent indent {};
                                 ImGui::Spacing();
 
                                 if (bool crs = config->RestoreComputeSignature.value_or_default();
-                                    ImGui::Checkbox("Restore Compute Root Signature", &crs))
+                                    ImGui::Checkbox("恢复计算根签名", &crs))
                                     config->RestoreComputeSignature = crs;
 
                                 if (bool grs = config->RestoreGraphicSignature.value_or_default();
-                                    ImGui::Checkbox("Restore Graphic Root Signature", &grs))
+                                    ImGui::Checkbox("恢复图形根签名", &grs))
                                     config->RestoreGraphicSignature = grs;
                             }
                         }
@@ -5958,7 +5875,7 @@ bool MenuCommon::RenderMenu()
 
                 // LOGGING -----------------------------
                 ImGui::Spacing();
-                if (auto ch = ScopedCollapsingHeader("Logging"); ch.IsHeaderOpen())
+                if (auto ch = ScopedCollapsingHeader("日志"); ch.IsHeaderOpen())
                 {
                     ScopedIndent indent {};
                     ImGui::Spacing();
@@ -5970,7 +5887,7 @@ bool MenuCommon::RenderMenu()
                     else
                         spdlog::default_logger()->set_level(spdlog::level::off);
 
-                    if (bool toFile = config->LogToFile.value_or_default(); ImGui::Checkbox("To File", &toFile))
+                    if (bool toFile = config->LogToFile.value_or_default(); ImGui::Checkbox("写入文件", &toFile))
                     {
                         config->LogToFile = toFile;
                         PrepareLogger();
@@ -5978,16 +5895,16 @@ bool MenuCommon::RenderMenu()
 
                     ImGui::SameLine(0.0f, 6.0f);
                     if (bool toConsole = config->LogToConsole.value_or_default();
-                        ImGui::Checkbox("To Console", &toConsole))
+                        ImGui::Checkbox("输出到控制台", &toConsole))
                     {
                         config->LogToConsole = toConsole;
                         PrepareLogger();
                     }
 
-                    const char* logLevels[] = { "Trace", "Debug", "Information", "Warning", "Error" };
+                    const char* logLevels[] = { "跟踪", "调试", "信息", "警告", "错误" };
                     const char* selectedLevel = logLevels[config->LogLevel.value_or_default()];
 
-                    if (ImGui::BeginCombo("Log Level", selectedLevel))
+                    if (ImGui::BeginCombo("日志级别", selectedLevel))
                     {
                         for (int n = 0; n < 5; n++)
                         {
@@ -6005,7 +5922,7 @@ bool MenuCommon::RenderMenu()
 
                 // THEME -----------------------------
                 ImGui::Spacing();
-                if (auto ch = ScopedCollapsingHeader("Menu Theme and Colour"); ch.IsHeaderOpen())
+                if (auto ch = ScopedCollapsingHeader("菜单主题与颜色"); ch.IsHeaderOpen())
                 {
                     ScopedIndent indent {};
                     ImGui::Spacing();
@@ -6037,15 +5954,15 @@ bool MenuCommon::RenderMenu()
                     auto AccentStrong = [&](ImVec4 accent, float alpha = 1.0f)
                     { return toneMapColor(ImVec4(accent.x, accent.y, accent.z, alpha)); };
 
-                    if (ImGui::Checkbox("Light Theme", &lightTheme))
+                    if (ImGui::Checkbox("浅色主题", &lightTheme))
                     {
                         config->LightTheme = lightTheme;
                         ApplyThemeStyle();
                     }
 
-                    ImGui::SeparatorText("Accent Colour");
+                    ImGui::SeparatorText("强调色");
 
-                    ImGui::Text("Presets:");
+                    ImGui::Text("预设：");
                     ImGui::SameLine(0.0f, 6.0f);
 
                     ImVec4 colorBlue = { 0.00f, 0.40f, 0.77f, 1.0f };
@@ -6064,7 +5981,7 @@ bool MenuCommon::RenderMenu()
                     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, AccentMed(color));
                     ImGui::PushStyleColor(ImGuiCol_ButtonActive, AccentStrong(color));
 
-                    if (ImGui::Button("Blue"))
+                    if (ImGui::Button("蓝色"))
                     {
                         ImGui::PopStyleColor(3);
 
@@ -6085,7 +6002,7 @@ bool MenuCommon::RenderMenu()
                     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, AccentMed(color));
                     ImGui::PushStyleColor(ImGuiCol_ButtonActive, AccentStrong(color));
 
-                    if (ImGui::Button("Teal"))
+                    if (ImGui::Button("青色"))
                     {
                         ImGui::PopStyleColor(3);
 
@@ -6106,7 +6023,7 @@ bool MenuCommon::RenderMenu()
                     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, AccentMed(color));
                     ImGui::PushStyleColor(ImGuiCol_ButtonActive, AccentStrong(color));
 
-                    if (ImGui::Button("Gray"))
+                    if (ImGui::Button("灰色"))
                     {
                         ImGui::PopStyleColor(3);
 
@@ -6127,7 +6044,7 @@ bool MenuCommon::RenderMenu()
                     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, AccentMed(color));
                     ImGui::PushStyleColor(ImGuiCol_ButtonActive, AccentStrong(color));
 
-                    if (ImGui::Button("Yellow"))
+                    if (ImGui::Button("黄色"))
                     {
                         ImGui::PopStyleColor(3);
 
@@ -6148,7 +6065,7 @@ bool MenuCommon::RenderMenu()
                     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, AccentMed(color));
                     ImGui::PushStyleColor(ImGuiCol_ButtonActive, AccentStrong(color));
 
-                    if (ImGui::Button("Green"))
+                    if (ImGui::Button("绿色"))
                     {
                         ImGui::PopStyleColor(3);
 
@@ -6169,7 +6086,7 @@ bool MenuCommon::RenderMenu()
                     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, AccentMed(color));
                     ImGui::PushStyleColor(ImGuiCol_ButtonActive, AccentStrong(color));
 
-                    if (ImGui::Button("Red"))
+                    if (ImGui::Button("红色"))
                     {
                         ImGui::PopStyleColor(3);
 
@@ -6190,7 +6107,7 @@ bool MenuCommon::RenderMenu()
                     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, AccentMed(color));
                     ImGui::PushStyleColor(ImGuiCol_ButtonActive, AccentStrong(color));
 
-                    if (ImGui::Button("Orange"))
+                    if (ImGui::Button("橙色"))
                     {
                         ImGui::PopStyleColor(3);
 
@@ -6211,7 +6128,7 @@ bool MenuCommon::RenderMenu()
                     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, AccentMed(color));
                     ImGui::PushStyleColor(ImGuiCol_ButtonActive, AccentStrong(color));
 
-                    if (ImGui::Button("Purple"))
+                    if (ImGui::Button("紫色"))
                     {
                         ImGui::PopStyleColor(3);
 
@@ -6229,7 +6146,7 @@ bool MenuCommon::RenderMenu()
                                              config->MenuAccentColorG.value_or_default(),
                                              config->MenuAccentColorB.value_or_default() };
 
-                    if (ImGui::ColorEdit3("Custom Accent Colour", accentColor))
+                    if (ImGui::ColorEdit3("自定义强调色", accentColor))
                     {
                         config->MenuAccentColorR = accentColor[0];
                         config->MenuAccentColorG = accentColor[1];
@@ -6239,7 +6156,7 @@ bool MenuCommon::RenderMenu()
 
                     ImGui::Spacing();
 
-                    if (ImGui::Button("Reset Accent Colour"))
+                    if (ImGui::Button("重置强调色"))
                     {
                         config->MenuAccentColorR.reset();
                         config->MenuAccentColorG.reset();
@@ -6249,9 +6166,9 @@ bool MenuCommon::RenderMenu()
 
                     ImGui::Spacing();
 
-                    ImGui::SeparatorText("Background Colour");
+                    ImGui::SeparatorText("背景色");
 
-                    ImGui::Text("Presets:");
+                    ImGui::Text("预设：");
                     ImGui::SameLine(0.0f, 6.0f);
 
                     color = colorBlue;
@@ -6259,7 +6176,7 @@ bool MenuCommon::RenderMenu()
                     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, AccentMed(color));
                     ImGui::PushStyleColor(ImGuiCol_ButtonActive, AccentStrong(color));
 
-                    if (ImGui::Button("Blue##2"))
+                    if (ImGui::Button("蓝色##2"))
                     {
                         ImGui::PopStyleColor(3);
 
@@ -6280,7 +6197,7 @@ bool MenuCommon::RenderMenu()
                     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, AccentMed(color));
                     ImGui::PushStyleColor(ImGuiCol_ButtonActive, AccentStrong(color));
 
-                    if (ImGui::Button("Teal##2"))
+                    if (ImGui::Button("青色##2"))
                     {
                         ImGui::PopStyleColor(3);
 
@@ -6301,7 +6218,7 @@ bool MenuCommon::RenderMenu()
                     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, AccentMed(color));
                     ImGui::PushStyleColor(ImGuiCol_ButtonActive, AccentStrong(color));
 
-                    if (ImGui::Button("Gray##2"))
+                    if (ImGui::Button("灰色##2"))
                     {
                         ImGui::PopStyleColor(3);
 
@@ -6322,7 +6239,7 @@ bool MenuCommon::RenderMenu()
                     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, AccentMed(color));
                     ImGui::PushStyleColor(ImGuiCol_ButtonActive, AccentStrong(color));
 
-                    if (ImGui::Button("Yellow##2"))
+                    if (ImGui::Button("黄色##2"))
                     {
                         ImGui::PopStyleColor(3);
 
@@ -6343,7 +6260,7 @@ bool MenuCommon::RenderMenu()
                     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, AccentMed(color));
                     ImGui::PushStyleColor(ImGuiCol_ButtonActive, AccentStrong(color));
 
-                    if (ImGui::Button("Green##2"))
+                    if (ImGui::Button("绿色##2"))
                     {
                         ImGui::PopStyleColor(3);
 
@@ -6364,7 +6281,7 @@ bool MenuCommon::RenderMenu()
                     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, AccentMed(color));
                     ImGui::PushStyleColor(ImGuiCol_ButtonActive, AccentStrong(color));
 
-                    if (ImGui::Button("Red##2"))
+                    if (ImGui::Button("红色##2"))
                     {
                         ImGui::PopStyleColor(3);
 
@@ -6385,7 +6302,7 @@ bool MenuCommon::RenderMenu()
                     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, AccentMed(color));
                     ImGui::PushStyleColor(ImGuiCol_ButtonActive, AccentStrong(color));
 
-                    if (ImGui::Button("Orange##2"))
+                    if (ImGui::Button("橙色##2"))
                     {
                         ImGui::PopStyleColor(3);
 
@@ -6406,7 +6323,7 @@ bool MenuCommon::RenderMenu()
                     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, AccentMed(color));
                     ImGui::PushStyleColor(ImGuiCol_ButtonActive, AccentStrong(color));
 
-                    if (ImGui::Button("Purple##2"))
+                    if (ImGui::Button("紫色##2"))
                     {
                         ImGui::PopStyleColor(3);
 
@@ -6424,7 +6341,7 @@ bool MenuCommon::RenderMenu()
                                          config->MenuBGColorG.value_or_default(),
                                          config->MenuBGColorB.value_or_default() };
 
-                    if (ImGui::ColorEdit3("Custom BG Colour", bgColor))
+                    if (ImGui::ColorEdit3("自定义背景色", bgColor))
                     {
                         config->MenuBGColorR = bgColor[0];
                         config->MenuBGColorG = bgColor[1];
@@ -6435,7 +6352,7 @@ bool MenuCommon::RenderMenu()
                     ImGui::Spacing();
 
                     auto alpha = config->MenuBGColorA.value_or_default();
-                    if (ImGui::SliderFloat("Background Alpha", &alpha, 0.0f, 1.0f))
+                    if (ImGui::SliderFloat("背景不透明度", &alpha, 0.0f, 1.0f))
                     {
                         config->MenuBGColorA = alpha;
                         ApplyThemeStyle();
@@ -6443,7 +6360,7 @@ bool MenuCommon::RenderMenu()
 
                     ImGui::Spacing();
 
-                    if (ImGui::Button("Reset BG Colour"))
+                    if (ImGui::Button("重置背景色"))
                     {
                         config->MenuBGColorR.reset();
                         config->MenuBGColorG.reset();
@@ -6457,25 +6374,25 @@ bool MenuCommon::RenderMenu()
 
                 // FPS OVERLAY -----------------------------
                 ImGui::Spacing();
-                if (auto ch = ScopedCollapsingHeader("FPS Overlay"); ch.IsHeaderOpen())
+                if (auto ch = ScopedCollapsingHeader("FPS 叠加层"); ch.IsHeaderOpen())
                 {
                     ScopedIndent indent {};
                     ImGui::Spacing();
 
                     bool fpsEnabled = config->ShowFps.value_or_default();
-                    if (ImGui::Checkbox("FPS Overlay Enabled", &fpsEnabled))
+                    if (ImGui::Checkbox("启用 FPS 叠加层", &fpsEnabled))
                         config->ShowFps = fpsEnabled;
 
                     ImGui::SameLine(0.0f, 6.0f);
 
                     bool fpsHorizontal = config->FpsOverlayHorizontal.value_or_default();
-                    if (ImGui::Checkbox("Horizontal", &fpsHorizontal))
+                    if (ImGui::Checkbox("横向排列", &fpsHorizontal))
                         config->FpsOverlayHorizontal = fpsHorizontal;
 
-                    const char* fpsPosition[] = { "Top Left", "Top Right", "Bottom Left", "Bottom Right" };
+                    const char* fpsPosition[] = { "左上", "右上", "左下", "右下" };
                     const char* selectedPosition = fpsPosition[config->FpsOverlayPos.value_or_default()];
 
-                    if (ImGui::BeginCombo("Overlay Position", selectedPosition))
+                    if (ImGui::BeginCombo("叠加层位置", selectedPosition))
                     {
                         for (int n = 0; n < 4; n++)
                         {
@@ -6486,11 +6403,11 @@ bool MenuCommon::RenderMenu()
                         ImGui::EndCombo();
                     }
 
-                    const char* fpsType[] = { "Just FPS", "Simple",       "Detailed",      "Detailed + Graph",
-                                              "Full",     "Full + Graph", "Reflex timings" };
+                    const char* fpsType[] = { "仅 FPS", "简洁",       "详细",      "详细 + 图表",
+                                              "完整",     "完整 + 图表", "Reflex 计时" };
                     const char* selectedType = fpsType[config->FpsOverlayType.value_or_default()];
 
-                    if (ImGui::BeginCombo("Overlay Type", selectedType))
+                    if (ImGui::BeginCombo("叠加层类型", selectedType))
                     {
                         for (int n = 0; n < std::size(fpsType); n++)
                         {
@@ -6502,16 +6419,16 @@ bool MenuCommon::RenderMenu()
                     }
 
                     float fpsAlpha = config->FpsOverlayAlpha.value_or_default();
-                    if (ImGui::SliderFloat("Background Alpha", &fpsAlpha, 0.0f, 1.0f, "%.2f"))
+                    if (ImGui::SliderFloat("背景不透明度", &fpsAlpha, 0.0f, 1.0f, "%.2f"))
                         config->FpsOverlayAlpha = fpsAlpha;
 
-                    const char* options[] = { "Same as menu", "0.5", "0.6", "0.7", "0.8", "0.9", "1.0", "1.1", "1.2",
+                    const char* options[] = { "与菜单相同", "0.5", "0.6", "0.7", "0.8", "0.9", "1.0", "1.1", "1.2",
                                               "1.3",          "1.4", "1.5", "1.6", "1.7", "1.8", "1.9", "2.0" };
                     int currentIndex = std::max(((int) (config->FpsScale.value_or(0.0f) * 10.0f)) - 4, 0);
                     float values[] = { 0.0f, 0.5f, 0.6f, 0.7f, 0.8f, 0.9f, 1.0f, 1.1f, 1.2f,
                                        1.3f, 1.4f, 1.5f, 1.6f, 1.7f, 1.8f, 1.9f, 2.0f };
 
-                    if (ImGui::SliderInt("Scale", &currentIndex, 0, IM_ARRAYSIZE(options) - 1, options[currentIndex],
+                    if (ImGui::SliderInt("缩放", &currentIndex, 0, IM_ARRAYSIZE(options) - 1, options[currentIndex],
                                          ImGuiSliderFlags_ClampOnInput))
                     {
                         if (currentIndex == 0)
@@ -6525,7 +6442,7 @@ bool MenuCommon::RenderMenu()
                 ImGui::Spacing();
                 auto uiStateOpen = currentFeature == nullptr || currentFeature->IsFrozen();
                 if (auto ch =
-                        ScopedCollapsingHeader("Upscaler Inputs", uiStateOpen ? ImGuiTreeNodeFlags_DefaultOpen : 0);
+                        ScopedCollapsingHeader("升频器输入", uiStateOpen ? ImGuiTreeNodeFlags_DefaultOpen : 0);
                     ch.IsHeaderOpen())
                 {
                     ScopedIndent indent {};
@@ -6536,12 +6453,12 @@ bool MenuCommon::RenderMenu()
                         bool fsr2Inputs = config->UseFsr2Inputs.value_or_default();
                         bool fsr2Pattern = config->Fsr2Pattern.value_or_default();
 
-                        if (ImGui::Checkbox("Use Fsr2 Inputs", &fsr2Inputs))
+                        if (ImGui::Checkbox("使用 FSR2 输入", &fsr2Inputs))
                             config->UseFsr2Inputs = fsr2Inputs;
 
-                        if (ImGui::Checkbox("Use Fsr2 Pattern Matching", &fsr2Pattern))
+                        if (ImGui::Checkbox("使用 FSR2 模式匹配", &fsr2Pattern))
                             config->Fsr2Pattern = fsr2Pattern;
-                        ShowTooltip("This setting will become active on next boot!");
+                        ShowTooltip("此设置将在下次启动时生效！");
                     }
 
                     if (config->EnableFsr3Inputs.value_or_default())
@@ -6549,19 +6466,19 @@ bool MenuCommon::RenderMenu()
                         bool fsr3Inputs = config->UseFsr3Inputs.value_or_default();
                         bool fsr3Pattern = config->Fsr3Pattern.value_or_default();
 
-                        if (ImGui::Checkbox("Use Fsr3 Inputs", &fsr3Inputs))
+                        if (ImGui::Checkbox("使用 FSR3 输入", &fsr3Inputs))
                             config->UseFsr3Inputs = fsr3Inputs;
 
-                        if (ImGui::Checkbox("Use Fsr3 Pattern Matching", &fsr3Pattern))
+                        if (ImGui::Checkbox("使用 FSR3 模式匹配", &fsr3Pattern))
                             config->Fsr3Pattern = fsr3Pattern;
-                        ShowTooltip("This setting will become active on next boot!");
+                        ShowTooltip("此设置将在下次启动时生效！");
                     }
 
                     if (config->EnableFfxInputs.value_or_default())
                     {
                         bool ffxInputs = config->UseFfxInputs.value_or_default();
 
-                        if (ImGui::Checkbox("Use Ffx Inputs", &ffxInputs))
+                        if (ImGui::Checkbox("使用 FFX 输入", &ffxInputs))
                             config->UseFfxInputs = ffxInputs;
                     }
                 }
@@ -6571,7 +6488,7 @@ bool MenuCommon::RenderMenu()
                 {
                     // V-SYNC -----------------------------
                     ImGui::Spacing();
-                    if (auto ch = ScopedCollapsingHeader("V-Sync Settings"); ch.IsHeaderOpen())
+                    if (auto ch = ScopedCollapsingHeader("垂直同步设置"); ch.IsHeaderOpen())
                     {
                         ScopedIndent indent {};
                         ImGui::Spacing();
@@ -6580,7 +6497,7 @@ bool MenuCommon::RenderMenu()
                         auto forceVsyncOff = config->ForceVsync.has_value() && !config->ForceVsync.value();
                         bool vsyncChanged = false;
 
-                        if (ImGui::Checkbox("V-Sync On", &forceVsyncOn))
+                        if (ImGui::Checkbox("强制开启垂直同步", &forceVsyncOn))
                         {
                             if (forceVsyncOn)
                             {
@@ -6595,7 +6512,7 @@ bool MenuCommon::RenderMenu()
                         }
                         ImGui::SameLine(0.0f, 16.0f);
 
-                        if (ImGui::Checkbox("V-Sync Off", &forceVsyncOff))
+                        if (ImGui::Checkbox("强制关闭垂直同步", &forceVsyncOff))
                         {
                             if (forceVsyncOff)
                             {
@@ -6615,7 +6532,7 @@ bool MenuCommon::RenderMenu()
                         ImGui::PushItemWidth(50.0f * menuResScale);
 
                         auto vsyncBuf = StrFmt("%d", config->VsyncInterval.value_or_default());
-                        if (ImGui::BeginCombo("Sync Int.", vsyncBuf.c_str()))
+                        if (ImGui::BeginCombo("同步间隔", vsyncBuf.c_str()))
                         {
                             if (ImGui::Selectable("0", config->VsyncInterval.value_or_default() == 0))
                             {
@@ -6645,24 +6562,21 @@ bool MenuCommon::RenderMenu()
                         }
                         ImGui::PopItemWidth();
 
-                        ShowHelpMarker("Controls the DXGI Present sync interval, which determines how\n"
-                                       "the swap chain waits for vertical refresh.\n\n"
-                                       "0  = Present immediately, no VSync wait.\n"
-                                       "1  = Sync to every refresh, normal VSync.\n"
-                                       "2+ = Present every N refreshes, reducing effective frame rate.\n\n"
-                                       "Higher values can reduce tearing but may increase latency and cap FPS.\n"
-                                       "For most games, use 0 for lowest latency or 1 for normal VSync.");
+                        ShowHelpMarker("控制 DXGI Present 同步间隔，即交换链等待垂直刷新的方式。\n\n"
+                                       "0 = 立即呈现，不等待垂直同步。\n1 = 每次刷新同步，即普通垂直同步。\n"
+                                       "2+ = 每 N 次刷新呈现一次，会降低实际帧率。\n\n"
+                                       "值越高越能减少撕裂，但可能增加延迟并限制 FPS。多数游戏使用 0 或 1。");
 
                         ImGui::EndDisabled();
                         ImGui::SameLine(0.0f, 16.0f);
 
-                        if (ImGui::Button("Reset##10"))
+                        if (ImGui::Button("重置##10"))
                         {
                             config->ForceVsync.reset();
                             vsyncChanged = true;
                         }
 
-                        ShowHelpMarker("Force V-Sync On/Off & Sync Interval options");
+                        ShowHelpMarker("重置强制垂直同步和同步间隔选项");
 
                         if (vsyncChanged && state.activeFgOutput == FGOutput::XeFG && state.currentFG != nullptr)
                         {
@@ -6674,7 +6588,7 @@ bool MenuCommon::RenderMenu()
 
                     // MIPMAP BIAS & Anisotropy -----------------------------
                     ImGui::Spacing();
-                    if (auto ch = ScopedCollapsingHeader("Mipmap Bias",
+                    if (auto ch = ScopedCollapsingHeader("Mipmap 偏差",
                                                          (currentFeature == nullptr || currentFeature->IsFrozen())
                                                              ? ImGuiTreeNodeFlags_DefaultOpen
                                                              : 0);
@@ -6685,11 +6599,8 @@ bool MenuCommon::RenderMenu()
                         if (config->MipmapBiasOverride.has_value() && _mipBias == 0.0f)
                             _mipBias = config->MipmapBiasOverride.value();
 
-                        ImGui::SliderFloat("Mipmap Bias##2", &_mipBias, -15.0f, 15.0f, "%.6f");
-                        ShowHelpMarker("Can help with blurry textures in broken games\n"
-                                       "Negative values will make textures sharper\n"
-                                       "Positive values will make textures more blurry\n\n"
-                                       "Has a small performance impact");
+                        ImGui::SliderFloat("Mipmap 偏差##2", &_mipBias, -15.0f, 15.0f, "%.6f");
+                        ShowHelpMarker("可改善部分游戏的纹理模糊问题。负值使纹理更锐利，正值使纹理更模糊；会略微影响性能。");
 
                         ImGui::BeginDisabled(!config->MipmapBiasOverride.has_value());
                         {
@@ -6697,13 +6608,13 @@ bool MenuCommon::RenderMenu()
                                                  config->MipmapBiasScaleOverride.value());
                             {
                                 bool mbFixed = config->MipmapBiasFixedOverride.value_or_default();
-                                if (ImGui::Checkbox("MB Fixed Override", &mbFixed))
+                                if (ImGui::Checkbox("固定覆盖 Mipmap 偏差", &mbFixed))
                                 {
                                     config->MipmapBiasScaleOverride.reset();
                                     config->MipmapBiasFixedOverride = mbFixed;
                                 }
 
-                                ShowHelpMarker("Apply same override value to all textures");
+                                ShowHelpMarker("对所有纹理应用相同覆盖值");
                             }
                             ImGui::EndDisabled();
 
@@ -6713,32 +6624,28 @@ bool MenuCommon::RenderMenu()
                                                  config->MipmapBiasFixedOverride.value());
                             {
                                 bool mbScale = config->MipmapBiasScaleOverride.value_or_default();
-                                if (ImGui::Checkbox("MB Scale Override", &mbScale))
+                                if (ImGui::Checkbox("按倍率覆盖 Mipmap 偏差", &mbScale))
                                 {
                                     config->MipmapBiasFixedOverride.reset();
                                     config->MipmapBiasScaleOverride = mbScale;
                                 }
 
-                                ShowHelpMarker("Apply override value as scale multiplier\n"
-                                               "When using scale mode, please use positive\n"
-                                               "override values to increase sharpness!");
+                                ShowHelpMarker("将覆盖值用作缩放倍率。使用倍率模式时，请用正值提高锐度！");
                             }
                             ImGui::EndDisabled();
 
                             bool mbAll = config->MipmapBiasOverrideAll.value_or_default();
-                            if (ImGui::Checkbox("MB Override All Textures", &mbAll))
+                            if (ImGui::Checkbox("覆盖所有纹理的 Mipmap 偏差", &mbAll))
                                 config->MipmapBiasOverrideAll = mbAll;
 
-                            ShowHelpMarker("Override all textures mipmap values\n"
-                                           "Normally OptiScaler only overrides\n"
-                                           "below zero mipmap values!");
+                            ShowHelpMarker("覆盖所有纹理的 Mipmap 值。通常 OptiScaler 仅覆盖小于零的值！");
                         }
                         ImGui::EndDisabled();
 
                         ImGui::BeginDisabled(config->MipmapBiasOverride.has_value() &&
                                              config->MipmapBiasOverride.value() == _mipBias);
                         {
-                            if (ImGui::Button("Set"))
+                            if (ImGui::Button("设置"))
                             {
                                 config->MipmapBiasOverride = _mipBias;
                                 state.lastMipBias = 100.0f;
@@ -6751,7 +6658,7 @@ bool MenuCommon::RenderMenu()
 
                         ImGui::BeginDisabled(!config->MipmapBiasOverride.has_value());
                         {
-                            if (ImGui::Button("Reset"))
+                            if (ImGui::Button("重置"))
                             {
                                 config->MipmapBiasOverride.reset();
                                 _mipBias = 0.0f;
@@ -6765,7 +6672,7 @@ bool MenuCommon::RenderMenu()
                         {
                             ImGui::SameLine(0.0f, 6.0f);
 
-                            if (ImGui::Button("Calculate Mipmap Bias"))
+                            if (ImGui::Button("计算 Mipmap 偏差"))
                                 _showMipmapCalcWindow = true;
                         }
 
@@ -6773,30 +6680,30 @@ bool MenuCommon::RenderMenu()
                         {
                             if (config->MipmapBiasFixedOverride.value_or_default())
                             {
-                                ImGui::Text("Current : %.3f / %.3f, Target: %.3f", state.lastMipBias,
+                                ImGui::Text("当前：%.3f / %.3f，目标：%.3f", state.lastMipBias,
                                             state.lastMipBiasMax, config->MipmapBiasOverride.value());
                             }
                             else if (config->MipmapBiasScaleOverride.value_or_default())
                             {
-                                ImGui::Text("Current : %.3f / %.3f, Target: Base * %.3f", state.lastMipBias,
+                                ImGui::Text("当前：%.3f / %.3f，目标：基础值 * %.3f", state.lastMipBias,
                                             state.lastMipBiasMax, config->MipmapBiasOverride.value());
                             }
                             else
                             {
-                                ImGui::Text("Current : %.3f / %.3f, Target: Base + %.3f", state.lastMipBias,
+                                ImGui::Text("当前：%.3f / %.3f，目标：基础值 + %.3f", state.lastMipBias,
                                             state.lastMipBiasMax, config->MipmapBiasOverride.value());
                             }
                         }
                         else
                         {
-                            ImGui::Text("Current : %.3f / %.3f", state.lastMipBias, state.lastMipBiasMax);
+                            ImGui::Text("当前：%.3f / %.3f", state.lastMipBias, state.lastMipBiasMax);
                         }
 
-                        ImGui::Text("Will be applied after RESOLUTION/PRESET change !!!");
+                        ImGui::Text("将在分辨率/预设更改后应用！");
                     }
 
                     ImGui::Spacing();
-                    if (auto ch = ScopedCollapsingHeader("Anisotropic Filtering",
+                    if (auto ch = ScopedCollapsingHeader("各向异性过滤",
                                                          (currentFeature == nullptr || currentFeature->IsFrozen())
                                                              ? ImGuiTreeNodeFlags_DefaultOpen
                                                              : 0);
@@ -6808,10 +6715,10 @@ bool MenuCommon::RenderMenu()
 
                         auto selectedAF = config->AnisotropyOverride.has_value()
                                               ? std::to_string(config->AnisotropyOverride.value())
-                                              : "Auto";
-                        if (ImGui::BeginCombo("Force Anisotropic Filtering", selectedAF.c_str()))
+                                              : "自动";
+                        if (ImGui::BeginCombo("强制各向异性过滤", selectedAF.c_str()))
                         {
-                            if (ImGui::Selectable("Auto", !config->AnisotropyOverride.has_value()))
+                            if (ImGui::Selectable("自动", !config->AnisotropyOverride.has_value()))
                                 config->AnisotropyOverride.reset();
 
                             if (ImGui::Selectable("1", config->AnisotropyOverride.value_or(0) == 1))
@@ -6835,43 +6742,43 @@ bool MenuCommon::RenderMenu()
                         ImGui::PopItemWidth();
 
                         bool afComp = config->AnisotropyModifyComp.value_or_default();
-                        if (ImGui::Checkbox("Modify Compare", &afComp))
+                        if (ImGui::Checkbox("修改比较过滤器", &afComp))
                             config->AnisotropyModifyComp = afComp;
 
-                        ShowHelpMarker("Update comparison filters");
+                        ShowHelpMarker("更新比较过滤器");
 
                         ImGui::SameLine(0.0f, 6.0f);
 
                         bool afMinMax = config->AnisotropyModifyMinMax.value_or_default();
-                        if (ImGui::Checkbox("Modify Min/Max", &afMinMax))
+                        if (ImGui::Checkbox("修改最小/最大过滤器", &afMinMax))
                             config->AnisotropyModifyMinMax = afMinMax;
 
-                        ShowHelpMarker("Update min/max filters");
+                        ShowHelpMarker("更新最小/最大过滤器");
 
                         bool afSkipPoint = config->AnisotropySkipPointFilter.value_or_default();
-                        if (ImGui::Checkbox("Skip Point Filters", &afSkipPoint))
+                        if (ImGui::Checkbox("跳过点过滤器", &afSkipPoint))
                             config->AnisotropySkipPointFilter = afSkipPoint;
 
-                        ShowHelpMarker("Skip updating of point filters");
+                        ShowHelpMarker("跳过点过滤器更新");
 
-                        ImGui::Text("Will might be applied after RESOLUTION/PRESET change !!!");
+                        ImGui::Text("可能会在分辨率/预设更改后应用！");
                     }
                 }
 
                 ImGui::Spacing();
-                if (auto ch = ScopedCollapsingHeader("Keybinds"); ch.IsHeaderOpen())
+                if (auto ch = ScopedCollapsingHeader("按键绑定"); ch.IsHeaderOpen())
                 {
                     ScopedIndent indent {};
                     ImGui::Spacing();
 
-                    ImGui::Text("Key combinations are currently NOT supported!");
-                    ImGui::Text("Escape to cancel, Backspace to unbind");
+                    ImGui::Text("当前不支持组合键！");
+                    ImGui::Text("按 Escape 取消，按 Backspace 解除绑定");
                     ImGui::Spacing();
 
-                    static auto menu = Keybind("Menu", 10);
-                    static auto fpsOverlay = Keybind("FPS Overlay", 11);
-                    static auto fpsOverlayCycle = Keybind("FPS Overlay Cycle", 12);
-                    static auto fgEnable = Keybind("Frame Generation", 13);
+                    static auto menu = Keybind("菜单", 10);
+                    static auto fpsOverlay = Keybind("FPS 叠加层", 11);
+                    static auto fpsOverlayCycle = Keybind("切换 FPS 叠加层模式", 12);
+                    static auto fgEnable = Keybind("帧生成", 13);
 
                     menu.Render(config->ShortcutKey);
                     fpsOverlay.Render(config->FpsShortcutKey);
@@ -6888,7 +6795,7 @@ bool MenuCommon::RenderMenu()
                 if (ImGui::BeginTable("plots", 2, ImGuiTableFlags_SizingStretchSame))
                 {
                     ImGui::TableNextColumn();
-                    ImGui::Text("FrameTime");
+                    ImGui::Text("帧时间");
                     auto ft = StrFmt("%7.2f ms / %6.1f fps", frameTime, frameRate);
                     ImGui::PlotLines(
                         ft.c_str(), [](void* rb, int idx) -> float
@@ -6897,7 +6804,7 @@ bool MenuCommon::RenderMenu()
                     if (currentFeature != nullptr && !currentFeature->IsFrozen())
                     {
                         ImGui::TableNextColumn();
-                        ImGui::Text("Upscaler");
+                        ImGui::Text("升频器");
                         auto ups = StrFmt("%7.2f ms", state.upscaleTimes.back());
                         ImGui::PlotLines(
                             ups.c_str(), [](void* rb, int idx) -> float
@@ -6931,7 +6838,7 @@ bool MenuCommon::RenderMenu()
 
                 ImGui::PushItemWidth(100.0f * menuResScale);
 
-                auto autoText = config->MenuScale.has_value() ? "Auto" : StrFmt("Auto (%3.1f)", menuResScale);
+                auto autoText = config->MenuScale.has_value() ? "自动" : StrFmt("自动（%3.1f）", menuResScale);
                 // clang-format off
                 const char* uiScales[] = { autoText.c_str(), "0.5", "0.6", "0.7", "0.8", "0.9", "1.0", "1.1",
                                            "1.2", "1.3", "1.4", "1.5", "1.6", "1.7", "1.8", "1.9", "2.0" };
@@ -6939,7 +6846,7 @@ bool MenuCommon::RenderMenu()
 
                 const char* selectedScaleName = uiScales[_selectedScale];
 
-                if (ImGui::BeginCombo("Menu Scale", selectedScaleName))
+                if (ImGui::BeginCombo("菜单缩放", selectedScaleName))
                 {
                     for (int n = 0; n < std::size(uiScales); n++)
                     {
@@ -6961,12 +6868,12 @@ bool MenuCommon::RenderMenu()
 
                 ImGui::SameLine(0.0f, 15.0f);
 
-                if (ImGui::Button("Save Settings"))
+                if (ImGui::Button("保存设置"))
                     config->SaveIni();
 
                 ImGui::SameLine(0.0f, 6.0f);
 
-                if (ImGui::Button("Close"))
+                if (ImGui::Button("关闭"))
                 {
                     _isVisible = false;
                     hasGamepad = (io.BackendFlags | ImGuiBackendFlags_HasGamepad) > 0;
@@ -6989,7 +6896,7 @@ bool MenuCommon::RenderMenu()
 
                 ImGui::SameLine();
 
-                auto textSize = ImGui::CalcTextSize("Open Wiki (?)");
+                auto textSize = ImGui::CalcTextSize("打开 Wiki (?)");
                 auto& style = ImGui::GetStyle();
                 textSize.x += style.FramePadding.x * 2.0f;
                 textSize.x += style.ItemSpacing.x;
@@ -6998,15 +6905,13 @@ bool MenuCommon::RenderMenu()
                 ImGui::SetCursorPosX(ImGui::GetCursorPosX() + avail - textSize.x);
 
                 // Make button text underline
-                if (ImGui::Button("Open Wiki"))
+                if (ImGui::Button("打开 Wiki"))
                 {
                     auto pIO = &ImGui::GetPlatformIO();
                     auto ctx = ImGui::GetCurrentContext();
                     pIO->Platform_OpenInShellFn(ctx, "https://github.com/optiscaler/OptiScaler/wiki");
                 }
-                ShowHelpMarker("Click to open the OptiScaler Wiki page\nin your default browser\n\n"
-                               "Compatibility list with known game issues\nand workarounds, FG options explained\n"
-                               "and other useful info");
+                ShowHelpMarker("点击后在默认浏览器中打开 OptiScaler Wiki。\n\n其中包含游戏兼容性问题、解决办法、FG 选项说明等信息。");
 
                 ImGui::Spacing();
                 ImGui::Separator();
@@ -7016,7 +6921,7 @@ bool MenuCommon::RenderMenu()
                     ImGui::Spacing();
                     ImGui::TextColored(
                         toneMapColor(ImVec4(1.f, 0.f, 0.f, 1.f)),
-                        "nvngx.ini detected, please move over to using OptiScaler.ini and delete the old config");
+                        "检测到 nvngx.ini，请改用 OptiScaler.ini 并删除旧配置");
                     ImGui::Spacing();
                 }
 
@@ -7076,12 +6981,12 @@ bool MenuCommon::RenderMenu()
                     _mipBiasCalculated = log2((float) _renderWidth / (float) _displayWidth);
                 }
 
-                if (ImGui::Begin("Mipmap Bias", nullptr, flags))
+                if (ImGui::Begin("Mipmap 偏差", nullptr, flags))
                 {
                     if (!ImGui::IsWindowFocused(ImGuiFocusedFlags_AnyWindow))
                         ImGui::SetWindowFocus();
 
-                    if (ImGui::InputScalar("Display Width", ImGuiDataType_U32, &_displayWidth, NULL, NULL, "%u"))
+                    if (ImGui::InputScalar("显示宽度", ImGuiDataType_U32, &_displayWidth, NULL, NULL, "%u"))
                     {
                         if (_displayWidth <= 0)
                         {
@@ -7101,8 +7006,8 @@ bool MenuCommon::RenderMenu()
                         _mipBiasCalculated = log2((float) _renderWidth / (float) _displayWidth);
                     }
 
-                    const char* q[] = { "Ultra Performance", "Performance",   "Balanced",
-                                        "Quality",           "Ultra Quality", "DLAA" };
+                    const char* q[] = { "超级性能", "性能",   "平衡",
+                                        "质量",           "超级质量", "DLAA" };
                     float fr[] = { 3.0f, 2.0f, 1.7f, 1.5f, 1.3f, 1.0f };
                     auto configQ = _mipmapUpscalerQuality;
 
@@ -7110,7 +7015,7 @@ bool MenuCommon::RenderMenu()
 
                     ImGui::BeginDisabled(config->UpscaleRatioOverrideEnabled.value_or_default());
 
-                    if (ImGui::BeginCombo("Upscaler Quality", selectedQ))
+                    if (ImGui::BeginCombo("升频质量", selectedQ))
                     {
                         for (int n = 0; n < 6; n++)
                         {
@@ -7163,16 +7068,16 @@ bool MenuCommon::RenderMenu()
 
                     auto minLimit = config->ExtendedLimits.value_or_default() ? 0.1f : 1.0f;
                     auto maxLimit = config->ExtendedLimits.value_or_default() ? 6.0f : 3.0f;
-                    if (ImGui::SliderFloat("Upscaler Ratio", &_mipmapUpscalerRatio, minLimit, maxLimit, "%.2f"))
+                    if (ImGui::SliderFloat("升频倍率", &_mipmapUpscalerRatio, minLimit, maxLimit, "%.2f"))
                     {
                         _renderWidth = static_cast<uint32_t>(_displayWidth / _mipmapUpscalerRatio);
                         _mipBiasCalculated = log2((float) _renderWidth / (float) _displayWidth);
                     }
 
-                    if (ImGui::InputScalar("Render Width", ImGuiDataType_U32, &_renderWidth, NULL, NULL, "%u"))
+                    if (ImGui::InputScalar("渲染宽度", ImGuiDataType_U32, &_renderWidth, NULL, NULL, "%u"))
                         _mipBiasCalculated = log2((float) _renderWidth / (float) _displayWidth);
 
-                    ImGui::SliderFloat("Mipmap Bias", &_mipBiasCalculated, -15.0f, 0.0f, "%.6f");
+                    ImGui::SliderFloat("Mipmap 偏差", &_mipBiasCalculated, -15.0f, 0.0f, "%.6f");
 
                     // BOTTOM LINE
                     ImGui::Spacing();
@@ -7183,14 +7088,14 @@ bool MenuCommon::RenderMenu()
                     ImGui::Spacing();
 
                     constexpr float spacing = 6.0f;
-                    auto textSize = ImGui::CalcTextSize("Use Value");
-                    textSize += ImGui::CalcTextSize("Close");
+                    auto textSize = ImGui::CalcTextSize("使用此值");
+                    textSize += ImGui::CalcTextSize("关闭");
                     textSize.x += ImGui::GetStyle().FramePadding.x * 5.0f + spacing; // 2 sides * 2 buttons + 1
 
                     float avail = ImGui::GetContentRegionAvail().x;
                     ImGui::SetCursorPosX(ImGui::GetCursorPosX() + avail - textSize.x);
 
-                    if (ImGui::Button("Use Value"))
+                    if (ImGui::Button("使用此值"))
                     {
                         _mipBias = _mipBiasCalculated;
                         _showMipmapCalcWindow = false;
@@ -7198,7 +7103,7 @@ bool MenuCommon::RenderMenu()
 
                     ImGui::SameLine(0.0f, spacing);
 
-                    if (ImGui::Button("Close"))
+                    if (ImGui::Button("关闭"))
                         _showMipmapCalcWindow = false;
 
                     ImGui::Spacing();
@@ -7217,7 +7122,7 @@ bool MenuCommon::RenderMenu()
                 ImGui::SetNextWindowPos(ImVec2 { posX, posY }, ImGuiCond_FirstUseEver);
                 ImGui::SetNextWindowSize(ImVec2 { 400.0f, 300.0f });
 
-                if (ImGui::Begin("HUDless Resources", nullptr, flags))
+                if (ImGui::Begin("无 HUD 资源", nullptr, flags))
                 {
                     if (!ImGui::IsWindowFocused(ImGuiFocusedFlags_AnyWindow))
                         ImGui::SetWindowFocus();
@@ -7237,10 +7142,10 @@ bool MenuCommon::RenderMenu()
 
                             ImGui::TableSetColumnIndex(0);
 
-                            ImGui::Text("%08x, %s->%s, Count: %llu, %s", (size_t) it->first,
+                            ImGui::Text("%08x, %s->%s, 次数: %llu, %s", (size_t) it->first,
                                         GetSourceString(it->second.captureInfo & 0xFF).c_str(),
                                         GetDispatchString(it->second.captureInfo & 0xFF00).c_str(),
-                                        it->second.usageCount, it->second.enabled ? "Active" : "Passive");
+                                        it->second.usageCount, it->second.enabled ? "主动" : "被动");
 
                             ImGui::TableSetColumnIndex(1);
 
@@ -7248,9 +7153,9 @@ bool MenuCommon::RenderMenu()
                             std::string text;
 
                             if (it->second.enabled)
-                                text = StrFmt("Disable##%d", btnCount);
+                                text = StrFmt("禁用##%d", btnCount);
                             else
-                                text = StrFmt("Enable##%d", btnCount);
+                                text = StrFmt("启用##%d", btnCount);
 
                             if (ImGui::Button(text.c_str()))
                             {
@@ -7263,7 +7168,7 @@ bool MenuCommon::RenderMenu()
                         ImGui::EndTable();
                     }
 
-                    if (ImGui::Button("Clear##4"))
+                    if (ImGui::Button("清空##4"))
                     {
                         LOG_DEBUG("Clearing captured HUDless resources");
                         state.ClearCapturedHudlesses = true;
@@ -7271,7 +7176,7 @@ bool MenuCommon::RenderMenu()
 
                     ImGui::SameLine(0.0f, 8.0f);
 
-                    if (ImGui::Button("Close##4"))
+                    if (ImGui::Button("关闭##4"))
                         _showHudlessWindow = false;
 
                     ImGui::End();
@@ -7359,14 +7264,13 @@ void MenuCommon::Init(HWND InHwnd, bool isUWP)
 
         if (Config::Instance()->TTFFontPath.has_value())
         {
-            io.FontDefault =
-                atlas->AddFontFromFileTTF(wstring_to_string(Config::Instance()->TTFFontPath.value()).c_str(), fontSize,
-                                          &fontConfig, io.Fonts->GetGlyphRangesDefault());
+            io.FontDefault = atlas->AddFontFromFileTTF(
+                wstring_to_string(Config::Instance()->TTFFontPath.value()).c_str(), fontSize, &fontConfig,
+                GetMenuGlyphRanges(io.Fonts));
         }
         else
         {
-            io.FontDefault = atlas->AddFontFromMemoryCompressedBase85TTF(hack_compressed_compressed_data_base85,
-                                                                         fontSize, &fontConfig);
+            io.FontDefault = AddBundledOrChineseFont(atlas, fontSize, &fontConfig);
         }
     }
 
