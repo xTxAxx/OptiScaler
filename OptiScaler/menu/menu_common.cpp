@@ -70,7 +70,7 @@ static const ImWchar* GetMenuGlyphRanges(ImFontAtlas* atlas)
     if (ranges.empty())
     {
         ImFontGlyphRangesBuilder builder;
-        builder.AddRanges(atlas->GetGlyphRangesChineseSimplifiedCommon());
+        builder.AddRanges(atlas->GetGlyphRangesDefault());
         builder.AddText(
             "—“”…、。《》一三上下不与专且世东两严个中为主么义之乎乏乘也习买了争二于互些交产亮人什仅今从他代令"
             "以们仰件任休众优会传伪估似但位低体何余作你佳使例供依保信修倍值假偏做停储像允元先光克免入全公关"
