@@ -55,7 +55,7 @@ static const ImWchar* GetMenuGlyphRanges(ImFontAtlas* atlas)
     if (ranges.empty())
     {
         ImFontGlyphRangesBuilder builder;
-        builder.AddRanges(atlas->GetGlyphRangesChineseSimplifiedCommon());
+        builder.AddRanges(atlas->GetGlyphRangesDefault());
         builder.AddText(
             "—“”…、。《》一三上下不与专且世东两个中为主么义之乎乏乘也习买了争二于互些交产亮人仅今从他代令以们仰件任休众优会传伪估似但位低体何余作你佳使供保信修倍值假偏做停储像允元先光克免入全关其具兼内再写冲决"
             "况减凑几出击分切列则刚创初删利别到制刷刺削前剩剪力办加务动助勾包化匹区升单博占卡印危即原去参又及双反发取受变叟叠只可台右号各合同名后向吗否含启呈告周和响啊善器噪嚼回因围固图在地均坏块垂型域基堆填增处复"
